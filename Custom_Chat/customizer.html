@@ -1,0 +1,3216 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Streamer.bot Chat Overlay Studio // Twitch • Kick • YouTube</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Default Google Fonts for Studio UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Dynamic Google Font Loader Link for Chat Preview -->
+  <link id="dynamic-google-font" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+
+  <style>
+    :root {
+      --bg-canvas: #090a0f;
+      --bg-surface: #11131c;
+      --bg-elevated: #181b28;
+      --bg-glass: rgba(24, 27, 40, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: #8b5cf6;
+      --twitch: #9146FF;
+      --kick: #53FC18;
+      --youtube: #FF0000;
+    }
+
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: #2e344e #0d0f17;
+    }
+
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    *::-webkit-scrollbar-track {
+      background: #0d0f17;
+    }
+    *::-webkit-scrollbar-thumb {
+      background-color: #2e344e;
+      border-radius: 9999px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      color: #f3f4f6;
+      margin: 0;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* OBS Transparency Checkerboard for Preview Stage */
+    .obs-checkerboard {
+      background-color: #12131a;
+      background-image: 
+        linear-gradient(45deg, #1b1d28 25%, transparent 25%), 
+        linear-gradient(-45deg, #1b1d28 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #1b1d28 75%), 
+        linear-gradient(-45deg, transparent 75%, #1b1d28 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    }
+
+    .obs-game-bg {
+      background: radial-gradient(circle at 20% 20%, #1e1b4b 0%, #090d16 55%, #050508 100%);
+      position: relative;
+    }
+
+    /* Custom Range Sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #232738;
+      height: 6px;
+      border-radius: 999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #a855f7;
+      cursor: pointer;
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
+      transition: transform 0.12s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* Built-in Animated Emote Keyframes */
+    @keyframes emoteBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-4px) scale(1.08); }
+    }
+    @keyframes emoteJam {
+      0%, 100% { transform: rotate(-10deg) scale(1.05); }
+      50% { transform: rotate(12deg) scale(1.1) translateY(-2px); }
+    }
+    @keyframes emoteSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes emotePulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(255,255,255,0.3)); }
+      50% { transform: scale(1.18); filter: drop-shadow(0 0 8px rgba(250,204,21,0.8)); }
+    }
+    @keyframes emoteShake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-2px) rotate(-5deg); }
+      75% { transform: translateX(2px) rotate(5deg); }
+    }
+    .anim-emote-jam { display: inline-block; animation: emoteJam 0.48s infinite ease-in-out; }
+    .anim-emote-bounce { display: inline-block; animation: emoteBounce 0.6s infinite ease-in-out; }
+    .anim-emote-spin { display: inline-block; animation: emoteSpin 1.4s infinite linear; }
+    .anim-emote-pulse { display: inline-block; animation: emotePulse 0.7s infinite ease-in-out; }
+    .anim-emote-shake { display: inline-block; animation: emoteShake 0.35s infinite ease-in-out; }
+
+    /* Announcement Shimmer & Glow */
+    @keyframes announceShimmer {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes announcePulseGlow {
+      0%, 100% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.45), inset 0 0 12px rgba(245, 158, 11, 0.2); }
+      50% { box-shadow: 0 0 30px rgba(236, 72, 153, 0.75), inset 0 0 20px rgba(245, 158, 11, 0.35); }
+    }
+    .sb-announcement-card {
+      animation: announcePulseGlow 2.2s infinite ease-in-out !important;
+      position: relative;
+      overflow: hidden;
+    }
+    .sb-announcement-card::after {
+      content: "";
+      position: absolute;
+      top: 0; left: -120%;
+      width: 65%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transform: skewX(-25deg);
+      animation: sweepLight 3.2s infinite;
+      pointer-events: none;
+    }
+    @keyframes sweepLight {
+      0% { left: -120%; }
+      45%, 100% { left: 160%; }
+    }
+
+    /* Hexagon Avatar Clip */
+    .avatar-hexagon {
+      clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+    }
+  </style>
+  <!-- Dynamic Animation Engine Style Block -->
+  <style id="chat-animation-engine"></style>
+</head>
+<body class="h-screen w-screen flex flex-col bg-[#090a0f] text-slate-100 overflow-hidden">
+
+  <!-- ==================== TOP STUDIO BAR ==================== -->
+  <header class="h-14 shrink-0 bg-[#11131c] border-b border-white/10 px-4 flex items-center justify-between gap-3 z-30">
+    <!-- Brand -->
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-600 via-indigo-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
+        <i data-lucide="radio" class="w-5 h-5 text-white"></i>
+      </div>
+      <div class="truncate">
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold tracking-tight text-sm md:text-base bg-clip-text text-transparent bg-gradient-to-r from-white via-purple-200 to-emerald-300">
+            STREAMER.BOT CHAT STUDIO
+          </span>
+          <span class="hidden sm:inline-flex items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-full">
+            OBS Overlay Builder
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 hidden md:block truncate">
+          Multi-Platform Chat Customizer • Twitch • Kick • YouTube • 108 Styles • 108 Effects • 108 Sounds • 112 Fonts
+        </p>
+      </div>
+    </div>
+
+    <!-- Streamer.bot WebSocket Connection Bar -->
+    <div class="flex items-center gap-2 bg-[#0b0d14] border border-white/10 rounded-lg px-2.5 py-1.5">
+      <div class="flex items-center gap-1.5">
+        <span id="ws-status-dot" class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]"></span>
+        <span id="ws-status-text" class="text-[11px] font-semibold text-slate-300 hidden xl:inline">Disconnected</span>
+      </div>
+      <input
+        id="ws-url-input"
+        type="text"
+        value="ws://127.0.0.1:8080/"
+        placeholder="ws://127.0.0.1:8080/"
+        class="mono text-xs bg-[#161926] text-slate-200 px-2.5 py-1 rounded border border-white/10 focus:border-purple-500 focus:outline-none w-36 sm:w-44"
+        title="Streamer.bot WebSocket Server URL"
+      />
+      <button
+        id="ws-connect-btn"
+        onclick="toggleStreamerBotConnection()"
+        class="px-3 py-1 rounded text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white transition flex items-center gap-1.5 shadow-sm"
+      >
+        <i data-lucide="plug-zap" class="w-3.5 h-3.5"></i>
+        <span id="ws-connect-btn-label">Connect</span>
+      </button>
+    </div>
+
+    <!-- Export & Code Actions -->
+    <div class="flex items-center gap-2 shrink-0">
+      <button
+        onclick="resetToDefaults()"
+        class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/10 transition hidden lg:flex items-center gap-1.5"
+        title="Reset all settings to default"
+      >
+        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+        <span>Reset</span>
+      </button>
+      <button
+        onclick="openExportModal()"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#1b1f30] hover:bg-[#252a40] text-purple-200 border border-purple-500/30 transition flex items-center gap-1.5"
+        title="View & Copy Standalone OBS HTML Code"
+      >
+        <i data-lucide="code-2" class="w-4 h-4 text-purple-400"></i>
+        <span class="hidden sm:inline">View / Copy HTML</span>
+      </button>
+      <button
+        onclick="downloadObsOverlayHtml()"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-500 hover:from-purple-500 hover:to-emerald-400 text-white shadow-lg shadow-purple-600/25 transition flex items-center gap-1.5"
+      >
+        <i data-lucide="download" class="w-4 h-4"></i>
+        <span>Export OBS Overlay (.html)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <div class="flex-1 flex min-h-0 overflow-hidden">
+
+    <!-- 1. LEFT NAVIGATION RAIL (9 CATEGORIES) -->
+    <aside class="w-16 md:w-56 shrink-0 bg-[#0d0f17] border-r border-white/10 flex flex-col justify-between overflow-y-auto">
+      <nav id="studio-tabs-nav" class="p-2 space-y-1">
+        <button onclick="switchTab('styles')" data-tab="styles" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left bg-purple-600/20 text-purple-300 border border-purple-500/40">
+          <i data-lucide="palette" class="w-4 h-4 shrink-0 text-purple-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Styles & Themes</div>
+            <div class="text-[10px] text-slate-400 font-normal">108 Chat Presets</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('effects')" data-tab="effects" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="sparkles" class="w-4 h-4 shrink-0 text-pink-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Effects & Motion</div>
+            <div class="text-[10px] text-slate-400 font-normal">108 In/Out + Random</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('fonts')" data-tab="fonts" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="type" class="w-4 h-4 shrink-0 text-sky-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Typography & Fonts</div>
+            <div class="text-[10px] text-slate-400 font-normal">112 Google & Windows</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('sounds')" data-tab="sounds" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="volume-2" class="w-4 h-4 shrink-0 text-emerald-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Audio & 108 Sounds</div>
+            <div class="text-[10px] text-slate-400 font-normal">Synth + Random Mode</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('colors')" data-tab="colors" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="sliders" class="w-4 h-4 shrink-0 text-amber-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Platform Colors</div>
+            <div class="text-[10px] text-slate-400 font-normal">Twitch / Kick / YT Colors</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('background')" data-tab="background" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="image" class="w-4 h-4 shrink-0 text-cyan-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Background & Border</div>
+            <div class="text-[10px] text-slate-400 font-normal">image.png • Solid • Fade</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('badges')" data-tab="badges" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="shield-check" class="w-4 h-4 shrink-0 text-indigo-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Avatars, Badges, Emotes</div>
+            <div class="text-[10px] text-slate-400 font-normal">PFPs • Animated Emotes</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('moderation')" data-tab="moderation" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="shield-alert" class="w-4 h-4 shrink-0 text-rose-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Timing & Filters</div>
+            <div class="text-[10px] text-slate-400 font-normal">Timer • Bots • Swears • Links</div>
+          </div>
+        </button>
+
+        <button onclick="switchTab('announcements')" data-tab="announcements" class="tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent">
+          <i data-lucide="megaphone" class="w-4 h-4 shrink-0 text-yellow-400"></i>
+          <div class="hidden md:block truncate">
+            <div>Announcements Pop</div>
+            <div class="text-[10px] text-slate-400 font-normal">Glow • Banner • Scale</div>
+          </div>
+        </button>
+      </nav>
+
+      <!-- Active Preset Summary Footer -->
+      <div class="hidden md:block p-3 m-2 rounded-xl bg-[#141724] border border-white/10 text-[11px] space-y-1.5">
+        <div class="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Active Configuration</div>
+        <div class="flex justify-between"><span class="text-slate-400">Style:</span> <span id="summary-style" class="text-purple-300 font-medium truncate max-w-[110px]">Glass Bubble</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Effect:</span> <span id="summary-effect" class="text-pink-300 font-medium truncate max-w-[110px]">🎲 Random</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Sound:</span> <span id="summary-sound" class="text-emerald-300 font-medium truncate max-w-[110px]">🎲 Random</span></div>
+        <div class="flex justify-between"><span class="text-slate-400">Font:</span> <span id="summary-font" class="text-sky-300 font-medium truncate max-w-[110px]">Inter</span></div>
+      </div>
+    </aside>
+
+    <!-- 2. CENTER INSPECTOR PANEL -->
+    <section class="w-[360px] lg:w-[460px] xl:w-[510px] shrink-0 bg-[#11131c] border-r border-white/10 flex flex-col min-h-0">
+
+      <!-- ==================== TAB 1: 108 STYLES & THEMES ==================== -->
+      <div id="tab-styles" class="inspector-tab flex-1 overflow-y-auto p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="palette" class="w-4 h-4 text-purple-400"></i>
+              108 Chat Styles & Presets
+            </h2>
+            <p class="text-xs text-slate-400">Bubbles, Plain Text, Glass, Cyberpunk, Esports HUD, RPG, Retro & more</p>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="stepStyle(-1)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10" title="Previous Style">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <button onclick="pickRandomStyle()" class="px-2.5 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-semibold">
+              🎲 Random
+            </button>
+            <button onclick="stepStyle(1)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10" title="Next Style">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search & Category Filter -->
+        <div class="space-y-2">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+            <input
+              id="style-search-input"
+              type="text"
+              oninput="renderStylesGrid()"
+              placeholder="Search 108 styles (e.g. Bubble, Plain, Neon, Glass, Anime)..."
+              class="w-full bg-[#0b0d14] border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+          <div id="style-category-pills" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- Quick Layout Controls -->
+        <div class="grid grid-cols-2 gap-2.5 bg-[#0b0d14] p-3 rounded-xl border border-white/10">
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium block mb-1">Username & Message Layout</label>
+            <select id="ctrl-message-layout" onchange="updateSetting('messageLayout', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+              <option value="style_default">Use Style Default</option>
+              <option value="stacked">Stacked (Name on Top)</option>
+              <option value="inline">Inline (Name: Message)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium block mb-1">Message Alignment</label>
+            <select id="ctrl-message-align" onchange="updateSetting('messageAlign', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+              <option value="left">Left Aligned</option>
+              <option value="right">Right Aligned</option>
+              <option value="alternating">Alternating Left/Right</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+              <span>Message Spacing</span>
+              <span id="lbl-msg-gap" class="mono text-purple-300">10px</span>
+            </label>
+            <input id="ctrl-msg-gap" type="range" min="2" max="28" value="10" oninput="updateSetting('messageGap', +this.value)" class="w-full" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+              <span>Card Padding</span>
+              <span id="lbl-msg-padding" class="mono text-purple-300">12px</span>
+            </label>
+            <input id="ctrl-msg-padding" type="range" min="2" max="28" value="12" oninput="updateSetting('cardPadding', +this.value)" class="w-full" />
+          </div>
+        </div>
+
+        <!-- 108 Styles Grid -->
+        <div id="styles-grid-container" class="grid grid-cols-2 gap-2 max-h-[460px] overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- ==================== TAB 2: 108 EFFECTS & ANIMATIONS ==================== -->
+      <div id="tab-effects" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="sparkles" class="w-4 h-4 text-pink-400"></i>
+            108 In/Out & Sliding Effects
+          </h2>
+          <p class="text-xs text-slate-400">Choose how new messages animate in, slide the stack, or pick Random for every message</p>
+        </div>
+
+        <!-- Random Effect Master Card -->
+        <div class="p-3.5 rounded-xl bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-indigo-500/15 border border-pink-500/40 flex items-center justify-between gap-3">
+          <div>
+            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>🎲 Random Effect on Every Message</span>
+              <span class="px-1.5 py-0.5 text-[10px] bg-pink-500/30 text-pink-200 rounded">Popular</span>
+            </div>
+            <p class="text-[11px] text-slate-300 mt-0.5">Every incoming message picks one of the 108 animations at random!</p>
+          </div>
+          <button
+            id="btn-random-effect"
+            onclick="updateSetting('animationId', 'random')"
+            class="px-3 py-2 rounded-lg text-xs font-bold bg-pink-600 hover:bg-pink-500 text-white shrink-0 shadow-lg shadow-pink-600/30 transition"
+          >
+            Enable Random
+          </button>
+        </div>
+
+        <!-- Animation Timing & Stack Slide Controls -->
+        <div class="bg-[#0b0d14] p-3 rounded-xl border border-white/10 space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+                <span>Animation Speed</span>
+                <span id="lbl-anim-duration" class="mono text-pink-300">450ms</span>
+              </label>
+              <input id="ctrl-anim-duration" type="range" min="150" max="1500" step="25" value="450" oninput="updateSetting('animationDuration', +this.value)" class="w-full" />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Out / Disappear Effect</label>
+              <select id="ctrl-out-effect" onchange="updateSetting('outEffect', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="fade_up">Fade & Slide Up</option>
+                <option value="fade_left">Slide Out Left</option>
+                <option value="fade_right">Slide Out Right</option>
+                <option value="scale_down">Shrink & Pop Out</option>
+                <option value="blur_dissolve">Blur Dissolve</option>
+                <option value="glitch_out">Cyber Glitch Out</option>
+                <option value="flip_out">3D Flip Out</option>
+              </select>
+            </div>
+          </div>
+
+          <label class="flex items-center justify-between cursor-pointer pt-1 border-t border-white/5">
+            <div>
+              <span class="text-xs font-semibold text-slate-200 block">Smooth Stack Sliding Effect</span>
+              <span class="text-[11px] text-slate-400">Smoothly slides older messages up/down when a new message enters</span>
+            </div>
+            <input id="ctrl-stack-slide" type="checkbox" checked onchange="updateSetting('smoothStackSlide', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+        </div>
+
+        <!-- Search & Filter Effects -->
+        <div class="space-y-2">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+            <input
+              id="effect-search-input"
+              type="text"
+              oninput="renderEffectsGrid()"
+              placeholder="Search 108 effects (e.g. Slide, Bounce, 3D, Glitch, Matrix, Spiral)..."
+              class="w-full bg-[#0b0d14] border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:border-pink-500 focus:outline-none"
+            />
+          </div>
+          <div id="effect-category-pills" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- 108 Effects Grid -->
+        <div id="effects-grid-container" class="grid grid-cols-2 gap-2 max-h-[410px] overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- ==================== TAB 3: 112 FONTS (GOOGLE + WINDOWS) ==================== -->
+      <div id="tab-fonts" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="type" class="w-4 h-4 text-sky-400"></i>
+            112 Google & Windows Fonts
+          </h2>
+          <p class="text-xs text-slate-400">27 Windows Built-in System Fonts + 85 Google Web Fonts</p>
+        </div>
+
+        <!-- Typography Sliders -->
+        <div class="bg-[#0b0d14] p-3 rounded-xl border border-white/10 grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+              <span>Font Size</span>
+              <span id="lbl-font-size" class="mono text-sky-300">15px</span>
+            </label>
+            <input id="ctrl-font-size" type="range" min="11" max="32" value="15" oninput="updateSetting('fontSize', +this.value)" class="w-full" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+              <span>Line Height</span>
+              <span id="lbl-line-height" class="mono text-sky-300">1.4</span>
+            </label>
+            <input id="ctrl-line-height" type="range" min="1.0" max="2.0" step="0.05" value="1.4" oninput="updateSetting('lineHeight', +this.value)" class="w-full" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium block mb-1">Username Weight</label>
+            <select id="ctrl-user-weight" onchange="updateSetting('usernameWeight', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+              <option value="600">Semi-Bold (600)</option>
+              <option value="700" selected>Bold (700)</option>
+              <option value="800">Extra-Bold (800)</option>
+              <option value="900">Black (900)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium block mb-1">Text Shadow / Stroke</label>
+            <select id="ctrl-text-shadow" onchange="updateSetting('textShadowMode', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+              <option value="soft">Soft Drop Shadow</option>
+              <option value="strong_outline">Strong Black Outline (OBS Crisp)</option>
+              <option value="neon_glow">Neon Glow</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Search & Filter Fonts -->
+        <div class="space-y-2">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+            <input
+              id="font-search-input"
+              type="text"
+              oninput="renderFontsGrid()"
+              placeholder="Search 112 fonts (e.g. Segoe UI, Orbitron, Bebas Neue, Comic Sans)..."
+              class="w-full bg-[#0b0d14] border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:border-sky-500 focus:outline-none"
+            />
+          </div>
+          <div id="font-category-pills" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- 112 Fonts List -->
+        <div id="fonts-grid-container" class="grid grid-cols-1 gap-1.5 max-h-[430px] overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- ==================== TAB 4: 108 SOUNDS & SYNTHESIZER ==================== -->
+      <div id="tab-sounds" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i>
+              108 Built-In Chat Sounds
+            </h2>
+            <p class="text-xs text-slate-400">Zero-dependency Web Audio synth — works offline inside OBS Studio</p>
+          </div>
+          <button
+            onclick="testSelectedSound()"
+            class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-600/25"
+          >
+            <i data-lucide="play" class="w-3.5 h-3.5"></i>
+            <span>Test Sound</span>
+          </button>
+        </div>
+
+        <!-- Sound Mode Quick Cards (Random / Mute / Local File) -->
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            id="btn-sound-random"
+            onclick="updateSetting('soundId', 'random'); testSelectedSound();"
+            class="p-2.5 rounded-xl border text-left transition bg-emerald-500/15 border-emerald-500/40 hover:bg-emerald-500/25"
+          >
+            <div class="text-xs font-bold text-emerald-300">🎲 Random Sound</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Different sound each msg</div>
+          </button>
+          <button
+            id="btn-sound-none"
+            onclick="updateSetting('soundId', 'none')"
+            class="p-2.5 rounded-xl border text-left transition bg-[#0b0d14] border-white/10 hover:bg-white/5"
+          >
+            <div class="text-xs font-bold text-slate-200">🔇 Mute / No Sound</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Silent chat messages</div>
+          </button>
+          <button
+            id="btn-sound-custom"
+            onclick="updateSetting('soundId', 'custom_file'); testSelectedSound();"
+            class="p-2.5 rounded-xl border text-left transition bg-[#0b0d14] border-white/10 hover:bg-white/5"
+          >
+            <div class="text-xs font-bold text-amber-300">📁 Local sound.mp3</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Uses ./sound.mp3 in folder</div>
+          </button>
+        </div>
+
+        <!-- Volume & Cooldown -->
+        <div class="bg-[#0b0d14] p-3 rounded-xl border border-white/10 grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+              <span>Master Volume</span>
+              <span id="lbl-sound-vol" class="mono text-emerald-300">65%</span>
+            </label>
+            <input id="ctrl-sound-vol" type="range" min="5" max="100" value="65" oninput="updateSetting('soundVolume', +this.value)" class="w-full" />
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium block mb-1">Custom Audio Filename</label>
+            <input id="ctrl-custom-sound-file" type="text" value="./sound.mp3" oninput="updateSetting('customSoundFile', this.value)" class="w-full mono bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white" />
+          </div>
+        </div>
+
+        <!-- Search & Category Filter for 108 Sounds -->
+        <div class="space-y-2">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+            <input
+              id="sound-search-input"
+              type="text"
+              oninput="renderSoundsGrid()"
+              placeholder="Search 108 sounds (e.g. Pop, Coin, Laser, Chime, Bubble, 8-Bit)..."
+              class="w-full bg-[#0b0d14] border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+            />
+          </div>
+          <div id="sound-category-pills" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- 108 Sounds Grid -->
+        <div id="sounds-grid-container" class="grid grid-cols-2 gap-2 max-h-[390px] overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- ==================== TAB 5: COLORS & PLATFORM MODES ==================== -->
+      <div id="tab-colors" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i>
+            Message & Platform Color Modes
+          </h2>
+          <p class="text-xs text-slate-400">Color messages by Platform (Twitch Purple, YouTube Red, Kick Green), User's Twitch Color, or Custom</p>
+        </div>
+
+        <!-- 3 Color Mode Cards -->
+        <div class="space-y-2.5">
+          <label class="flex items-start gap-3 p-3 rounded-xl bg-[#0b0d14] border border-white/10 cursor-pointer hover:border-purple-500/50 transition">
+            <input type="radio" name="colorModeRadio" value="platform" onchange="updateSetting('colorMode', this.value)" class="mt-1 accent-purple-500" />
+            <div class="flex-1">
+              <div class="text-xs font-bold text-white flex items-center gap-2">
+                <span>1. Platform Color Coded</span>
+                <span class="inline-flex gap-1">
+                  <span class="w-2.5 h-2.5 rounded-full bg-[#9146FF]" title="Twitch Purple"></span>
+                  <span class="w-2.5 h-2.5 rounded-full bg-[#FF0000]" title="YouTube Red"></span>
+                  <span class="w-2.5 h-2.5 rounded-full bg-[#53FC18]" title="Kick Green"></span>
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-0.5">Twitch messages = Purple, YouTube messages = Red, Kick messages = Green</p>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 p-3 rounded-xl bg-[#0b0d14] border border-white/10 cursor-pointer hover:border-purple-500/50 transition">
+            <input type="radio" name="colorModeRadio" value="user_color" onchange="updateSetting('colorMode', this.value)" class="mt-1 accent-purple-500" />
+            <div class="flex-1">
+              <div class="text-xs font-bold text-white">2. User's Set Chat Color (Twitch / Kick / YT)</div>
+              <p class="text-[11px] text-slate-400 mt-0.5">Uses each chatter's chosen username color from Streamer.bot</p>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 p-3 rounded-xl bg-[#0b0d14] border border-white/10 cursor-pointer hover:border-purple-500/50 transition">
+            <input type="radio" name="colorModeRadio" value="custom" onchange="updateSetting('colorMode', this.value)" class="mt-1 accent-purple-500" />
+            <div class="flex-1">
+              <div class="text-xs font-bold text-white">3. Custom Unified Colors</div>
+              <p class="text-[11px] text-slate-400 mt-0.5">Use your own custom colors for all usernames, text, and message cards</p>
+            </div>
+          </label>
+        </div>
+
+        <!-- Platform Color Application Scope -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <div class="text-xs font-bold text-slate-200">How should Platform / User Colors apply to messages?</div>
+          <select id="ctrl-color-apply-scope" onchange="updateSetting('colorScope', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-3 py-2 text-xs text-white">
+            <option value="full_bubble">Tint Entire Message Bubble + Border + Username</option>
+            <option value="accent_and_name">Platform Accent Border/Glow + Username Color</option>
+            <option value="username_only">Username Color Only (Keep Style's Default Card Background)</option>
+            <option value="full_text">Color Both Username & Message Text by Platform</option>
+          </select>
+
+          <div class="grid grid-cols-3 gap-2 pt-2">
+            <div class="bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <label class="text-[10px] font-bold text-purple-300 block mb-1">TWITCH COLOR</label>
+              <div class="flex items-center gap-2">
+                <input id="ctrl-twitch-color" type="color" value="#9146FF" oninput="updateSetting('twitchColor', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent border-0" />
+                <span id="lbl-twitch-color" class="mono text-[11px] text-slate-300">#9146FF</span>
+              </div>
+            </div>
+            <div class="bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <label class="text-[10px] font-bold text-red-400 block mb-1">YOUTUBE COLOR</label>
+              <div class="flex items-center gap-2">
+                <input id="ctrl-youtube-color" type="color" value="#FF0000" oninput="updateSetting('youtubeColor', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent border-0" />
+                <span id="lbl-youtube-color" class="mono text-[11px] text-slate-300">#FF0000</span>
+              </div>
+            </div>
+            <div class="bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <label class="text-[10px] font-bold text-emerald-400 block mb-1">KICK COLOR</label>
+              <div class="flex items-center gap-2">
+                <input id="ctrl-kick-color" type="color" value="#53FC18" oninput="updateSetting('kickColor', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent border-0" />
+                <span id="lbl-kick-color" class="mono text-[11px] text-slate-300">#53FC18</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Unified Colors -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <div class="text-xs font-bold text-slate-200">Custom Text & Card Colors</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="flex items-center justify-between bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <span class="text-xs text-slate-300">Message Text</span>
+              <input id="ctrl-custom-text-color" type="color" value="#F8FAFC" oninput="updateSetting('customTextColor', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent" />
+            </div>
+            <div class="flex items-center justify-between bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <span class="text-xs text-slate-300">Custom Username</span>
+              <input id="ctrl-custom-name-color" type="color" value="#C084FC" oninput="updateSetting('customUsernameColor', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent" />
+            </div>
+            <div class="flex items-center justify-between bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <span class="text-xs text-slate-300">Custom Bubble BG</span>
+              <input id="ctrl-custom-bubble-bg" type="color" value="#181B28" oninput="updateSetting('customBubbleBg', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent" />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+                <span>Bubble Opacity</span>
+                <span id="lbl-bubble-opacity" class="mono text-amber-300">88%</span>
+              </label>
+              <input id="ctrl-bubble-opacity" type="range" min="0" max="100" value="88" oninput="updateSetting('bubbleOpacity', +this.value)" class="w-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TAB 6: BACKGROUND & LOCAL image.png BORDER ==================== -->
+      <div id="tab-background" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="image" class="w-4 h-4 text-cyan-400"></i>
+            Background & Local <code class="mono text-cyan-300">image.png</code> Options
+          </h2>
+          <p class="text-xs text-slate-400">Choose Transparent, Local <code class="mono">image.png</code> Border/Frame, Solid Color, or Fade Gradient</p>
+        </div>
+
+        <!-- 4 Background Modes -->
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="updateSetting('bgMode', 'transparent')" id="bg-mode-transparent" class="p-3 rounded-xl border text-left transition">
+            <div class="text-xs font-bold text-white">1. Transparent (OBS Default)</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Clean transparent overlay container</div>
+          </button>
+          <button onclick="updateSetting('bgMode', 'image_png')" id="bg-mode-image_png" class="p-3 rounded-xl border text-left transition">
+            <div class="text-xs font-bold text-cyan-300">2. Local image.png Border</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Uses ./image.png in same folder</div>
+          </button>
+          <button onclick="updateSetting('bgMode', 'solid')" id="bg-mode-solid" class="p-3 rounded-xl border text-left transition">
+            <div class="text-xs font-bold text-white">3. Solid Color Background</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Custom solid backdrop color</div>
+          </button>
+          <button onclick="updateSetting('bgMode', 'fade')" id="bg-mode-fade" class="p-3 rounded-xl border text-left transition">
+            <div class="text-xs font-bold text-purple-300">4. Fade / Gradient Background</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Smooth gradient & top fade mask</div>
+          </button>
+        </div>
+
+        <!-- Local image.png Settings Panel -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-cyan-500/30 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+              <i data-lucide="folder-Input" class="w-4 h-4"></i>
+              Local <code class="mono">image.png</code> Configuration
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200 mono">./image.png</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            When exported, the HTML automatically loads <code class="mono text-cyan-300">./image.png</code> located in the exact same folder as your exported HTML file.
+          </p>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Apply <code class="mono">image.png</code> To:</label>
+              <select id="ctrl-image-png-target" onchange="updateSetting('imagePngMode', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="message_border">Each Message Border (border-image)</option>
+                <option value="container_border">Entire Chat Box Frame (border-image)</option>
+                <option value="message_bg">Each Message Background Texture</option>
+                <option value="container_bg">Entire Chat Box Background</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Local Filename</label>
+              <input id="ctrl-image-png-path" type="text" value="./image.png" oninput="updateSetting('imagePngPath', this.value)" class="w-full mono bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+                <span>Border Slice</span>
+                <span id="lbl-img-slice" class="mono text-cyan-300">28</span>
+              </label>
+              <input id="ctrl-img-slice" type="range" min="5" max="100" value="28" oninput="updateSetting('imagePngSlice', +this.value)" class="w-full" />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+                <span>Border Width</span>
+                <span id="lbl-img-width" class="mono text-cyan-300">12px</span>
+              </label>
+              <input id="ctrl-img-width" type="range" min="2" max="40" value="12" oninput="updateSetting('imagePngWidth', +this.value)" class="w-full" />
+            </div>
+          </div>
+
+          <!-- Test Local image.png inside Studio Preview -->
+          <div class="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+            <div class="text-[11px] text-slate-300">
+              Preview your local <code class="mono text-cyan-300">image.png</code> right here:
+            </div>
+            <label class="px-3 py-1.5 rounded-lg bg-cyan-600/25 hover:bg-cyan-600/40 text-cyan-200 border border-cyan-500/40 text-xs font-semibold cursor-pointer transition shrink-0">
+              <span>Choose image.png...</span>
+              <input type="file" accept="image/*" onchange="handleLocalImagePreviewUpload(event)" class="hidden" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Solid & Fade Color Controls -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <div class="text-xs font-bold text-slate-200">Solid & Fade Gradient Colors</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="flex items-center justify-between bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <span class="text-xs text-slate-300">Primary BG Color</span>
+              <input id="ctrl-bg-color-1" type="color" value="#0d101b" oninput="updateSetting('bgColor1', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent" />
+            </div>
+            <div class="flex items-center justify-between bg-[#141724] p-2.5 rounded-lg border border-white/5">
+              <span class="text-xs text-slate-300">Fade Second Color</span>
+              <input id="ctrl-bg-color-2" type="color" value="#2e1065" oninput="updateSetting('bgColor2', this.value)" class="w-7 h-7 rounded cursor-pointer bg-transparent" />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+                <span>Background Opacity</span>
+                <span id="lbl-bg-opacity" class="mono text-cyan-300">75%</span>
+              </label>
+              <input id="ctrl-bg-opacity" type="range" min="0" max="100" value="75" oninput="updateSetting('bgOpacity', +this.value)" class="w-full" />
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+                <span>Gradient Angle</span>
+                <span id="lbl-bg-angle" class="mono text-cyan-300">180°</span>
+              </label>
+              <input id="ctrl-bg-angle" type="range" min="0" max="360" value="180" oninput="updateSetting('bgGradientAngle', +this.value)" class="w-full" />
+            </div>
+          </div>
+
+          <label class="flex items-center justify-between cursor-pointer pt-2 border-t border-white/5">
+            <div>
+              <span class="text-xs font-semibold text-slate-200 block">Top Edge Fade-Out Mask</span>
+              <span class="text-[11px] text-slate-400">Smoothly fades out oldest messages near the top edge of the chat box</span>
+            </div>
+            <input id="ctrl-top-fade-mask" type="checkbox" checked onchange="updateSetting('topFadeMask', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+        </div>
+      </div>
+
+      <!-- ==================== TAB 7: AVATARS, BADGES & EMOTES ==================== -->
+      <div id="tab-badges" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-indigo-400"></i>
+            Profile Pictures, Badges & Emotes
+          </h2>
+          <p class="text-xs text-slate-400">Configure Twitch/YouTube/Kick profile avatars, role badges, and animated emotes</p>
+        </div>
+
+        <!-- User Profile Pictures (Avatars) -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <span class="text-xs font-bold text-white block">Show User Profile Picture (Avatar)</span>
+              <span class="text-[11px] text-slate-400">Displays Twitch PFP, YouTube Channel Icon, and Kick Profile Picture</span>
+            </div>
+            <input id="ctrl-show-avatars" type="checkbox" checked onchange="updateSetting('showAvatars', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+
+          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Avatar Shape</label>
+              <select id="ctrl-avatar-shape" onchange="updateSetting('avatarShape', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="circle">Circle</option>
+                <option value="rounded">Rounded Square</option>
+                <option value="hexagon">Esports Hexagon</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+                <span>Avatar Size</span>
+                <span id="lbl-avatar-size" class="mono text-indigo-300">32px</span>
+              </label>
+              <input id="ctrl-avatar-size" type="range" min="20" max="54" value="32" oninput="updateSetting('avatarSize', +this.value)" class="w-full" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Platform & Role Badges -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-2.5">
+          <div class="text-xs font-bold text-white">Platform & User Badges</div>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-xs text-slate-300">Show Platform Icon (Twitch / Kick / YouTube Logo)</span>
+            <input id="ctrl-show-platform-badge" type="checkbox" checked onchange="updateSetting('showPlatformBadge', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-xs text-slate-300">Show Role Badges (Mod, VIP, Broadcaster, Sub, Verified)</span>
+            <input id="ctrl-show-role-badges" type="checkbox" checked onchange="updateSetting('showBadges', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-xs text-slate-300">Show Message Timestamp</span>
+            <input id="ctrl-show-timestamp" type="checkbox" onchange="updateSetting('showTimestamp', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+        </div>
+
+        <!-- Animated, Standard & Custom Emotes -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <div class="text-xs font-bold text-white">Emotes (Animated + Platform + Custom)</div>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-xs text-slate-300">Show Standard Emotes (Twitch / YouTube / Kick)</span>
+            <input id="ctrl-show-emotes" type="checkbox" checked onchange="updateSetting('showEmotes', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-xs text-slate-300">Enable Animated Emotes (7TV / BTTV / FFZ / Animated GIFs)</span>
+            <input id="ctrl-show-anim-emotes" type="checkbox" checked onchange="updateSetting('showAnimatedEmotes', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+
+          <div>
+            <label class="text-[11px] text-slate-400 font-medium flex justify-between mb-1">
+              <span>Emote Size</span>
+              <span id="lbl-emote-size" class="mono text-indigo-300">28px</span>
+            </label>
+            <input id="ctrl-emote-size" type="range" min="18" max="56" value="28" oninput="updateSetting('emoteSize', +this.value)" class="w-full" />
+          </div>
+
+          <!-- Custom Emote Adder -->
+          <div class="pt-2 border-t border-white/10 space-y-2">
+            <div class="text-[11px] font-semibold text-slate-300">Custom Emotes Manager (Built-in: <code class="mono text-purple-300">catJAM PogChamp KEKW pepeD HYPERS GG FIRE LULW</code>)</div>
+            <div class="flex gap-1.5">
+              <input id="custom-emote-code" type="text" placeholder="Code (e.g. MYEMOTE)" class="w-28 bg-[#161926] border border-white/10 rounded-lg px-2 py-1 text-xs text-white mono" />
+              <input id="custom-emote-url" type="text" placeholder="Image/GIF URL (https://...)" class="flex-1 bg-[#161926] border border-white/10 rounded-lg px-2 py-1 text-xs text-white" />
+              <button onclick="addCustomEmote()" class="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">Add</button>
+            </div>
+            <div id="custom-emotes-list" class="flex flex-wrap gap-1.5 pt-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TAB 8: TIMING, LIMITS & MODERATION ==================== -->
+      <div id="tab-moderation" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-rose-400"></i>
+            Timing, Limits, Bots & Moderation Filters
+          </h2>
+          <p class="text-xs text-slate-400">Message limits, auto-hide timer, bot filter, ban/delete removal, swear & link filters</p>
+        </div>
+
+        <!-- Max Messages & Disappear Timer -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <div>
+            <label class="text-xs font-bold text-white flex justify-between mb-1">
+              <span>Max Messages Shown on Screen</span>
+              <span id="lbl-max-messages" class="mono text-rose-300">15 Messages</span>
+            </label>
+            <input id="ctrl-max-messages" type="range" min="1" max="60" value="15" oninput="updateSetting('maxMessages', +this.value)" class="w-full" />
+          </div>
+
+          <div class="pt-2 border-t border-white/10 space-y-2.5">
+            <label class="flex items-center justify-between cursor-pointer">
+              <div>
+                <span class="text-xs font-bold text-white block">Show Chat All The Time (Never Disappear)</span>
+                <span class="text-[11px] text-slate-400">Uncheck to automatically hide messages after a set amount of sec/mins</span>
+              </div>
+              <input id="ctrl-show-always" type="checkbox" checked onchange="updateSetting('showAlways', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+            </label>
+
+            <div id="timer-controls-row" class="grid grid-cols-2 gap-2.5 pt-1">
+              <div>
+                <label class="text-[11px] text-slate-400 font-medium block mb-1">Disappear After</label>
+                <input id="ctrl-hide-duration" type="number" min="1" max="999" value="30" oninput="updateSetting('hideAfterValue', Math.max(1, +this.value))" class="w-full mono bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+              </div>
+              <div>
+                <label class="text-[11px] text-slate-400 font-medium block mb-1">Time Unit</label>
+                <select id="ctrl-hide-unit" onchange="updateSetting('hideAfterUnit', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                  <option value="seconds">Seconds</option>
+                  <option value="minutes">Minutes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bot Filter & Ban/Delete Auto-Purge -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <span class="text-xs font-bold text-white block">Delete Messages on User Ban / Timeout / Mod Delete</span>
+              <span class="text-[11px] text-slate-400">Automatically removes messages when streamer/mod deletes or bans user</span>
+            </div>
+            <input id="ctrl-delete-on-ban" type="checkbox" checked onchange="updateSetting('deleteOnBanOrDelete', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+          </label>
+
+          <div class="pt-2 border-t border-white/10 space-y-2">
+            <label class="flex items-center justify-between cursor-pointer">
+              <div>
+                <span class="text-xs font-bold text-white block">Show Bot Messages in Chat</span>
+                <span class="text-[11px] text-slate-400">Disable to hide Nightbot, StreamElements, Fossabot, etc.</span>
+              </div>
+              <input id="ctrl-show-bots" type="checkbox" onchange="updateSetting('showBotMessages', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+            </label>
+            <div>
+              <label class="text-[10px] text-slate-400 font-semibold uppercase block mb-1">Bot Usernames List (Comma-Separated)</label>
+              <input id="ctrl-bot-list" type="text" value="Nightbot, StreamElements, Fossabot, Moobot, Streamlabs, Wizebot, BotRix, KickBot" oninput="updateSetting('botNamesList', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Swear Words & Web Links Filter -->
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-white/10 space-y-3">
+          <div class="space-y-2">
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-xs font-bold text-white">Filter Swear Words / Profanity</span>
+              <input id="ctrl-filter-swears" type="checkbox" checked onchange="updateSetting('filterSwears', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <select id="ctrl-swear-action" onchange="updateSetting('swearAction', this.value)" class="bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="asterisk">Replace word with ****</option>
+                <option value="block">Block entire message</option>
+              </select>
+              <input id="ctrl-swear-list" type="text" value="fuck, shit, bitch, asshole, cunt, dick, bastard, slut, whore, dumbass, stfu" oninput="updateSetting('swearWordsList', this.value)" placeholder="Comma separated words..." class="bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200" title="Custom blocked words list" />
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-white/10 space-y-2">
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-xs font-bold text-white">Filter Web Links / URLs</span>
+              <input id="ctrl-filter-links" type="checkbox" checked onchange="updateSetting('filterLinks', this.checked)" class="w-4 h-4 accent-purple-500 rounded" />
+            </label>
+            <select id="ctrl-link-action" onchange="updateSetting('linkAction', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+              <option value="replace">Replace URLs with [link removed]</option>
+              <option value="block">Completely block messages with links</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TAB 9: ANNOUNCEMENTS POP MORE ==================== -->
+      <div id="tab-announcements" class="inspector-tab hidden flex-1 overflow-y-auto p-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="megaphone" class="w-4 h-4 text-yellow-400"></i>
+            Make Announcements Pop More
+          </h2>
+          <p class="text-xs text-slate-400">Special high-impact styling for Stream Announcements, SuperChats & Pinned Highlights</p>
+        </div>
+
+        <div class="bg-[#0b0d14] p-3.5 rounded-xl border border-yellow-500/30 space-y-3">
+          <label class="flex items-center justify-between cursor-pointer">
+            <div>
+              <span class="text-xs font-bold text-yellow-300 block">Enable High-Impact Announcement Pop</span>
+              <span class="text-[11px] text-slate-400">Makes announcements stand out with animated glow, shimmer & banner</span>
+            </div>
+            <input id="ctrl-announce-pop" type="checkbox" checked onchange="updateSetting('announcementPop', this.checked)" class="w-4 h-4 accent-yellow-500 rounded" />
+          </label>
+
+          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Announcement Theme</label>
+              <select id="ctrl-announce-theme" onchange="updateSetting('announcementTheme', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                <option value="gold_royal">Royal Gold & Amber Shimmer</option>
+                <option value="cyber_magenta">Cyber Magenta & Neon Cyan</option>
+                <option value="emerald_flare">Radioactive Emerald Flare</option>
+                <option value="crimson_alert">Crimson Red Broadcast Alert</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Banner Header Text</label>
+              <input id="ctrl-announce-title" type="text" value="📢 STREAM ANNOUNCEMENT" oninput="updateSetting('announcementTitle', this.value)" class="w-full bg-[#161926] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+            </div>
+          </div>
+
+          <label class="flex items-center justify-between cursor-pointer pt-1">
+            <span class="text-xs text-slate-300">Play Special Fanfare Chime on Announcement</span>
+            <input id="ctrl-announce-sound" type="checkbox" checked onchange="updateSetting('announcementSound', this.checked)" class="w-4 h-4 accent-yellow-500 rounded" />
+          </label>
+
+          <button
+            onclick="simulateChatMessage('announcement')"
+            class="w-full py-2 rounded-lg bg-gradient-to-r from-amber-500 via-yellow-500 to-pink-500 text-slate-950 font-extrabold text-xs shadow-lg shadow-amber-500/20 hover:brightness-110 transition"
+          >
+            📢 Test Announcement Message Now
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- 3. RIGHT PANE: LIVE PREVIEW STAGE & SIMULATOR -->
+    <main class="flex-1 flex flex-col min-w-0 bg-[#07080d]">
+
+      <!-- Simulator & Preview Stage Toolbar -->
+      <div class="bg-[#11131c] border-b border-white/10 p-2.5 flex flex-wrap items-center justify-between gap-2">
+        <!-- Simulator Trigger Buttons -->
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1.5">Test Simulator:</span>
+          <button onclick="simulateChatMessage('twitch')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-[#9146FF]/20 hover:bg-[#9146FF]/35 text-[#c49bff] border border-[#9146FF]/40 transition">
+            + Twitch
+          </button>
+          <button onclick="simulateChatMessage('kick')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-[#53FC18]/15 hover:bg-[#53FC18]/30 text-[#7dff4d] border border-[#53FC18]/40 transition">
+            + Kick
+          </button>
+          <button onclick="simulateChatMessage('youtube')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-[#FF0000]/20 hover:bg-[#FF0000]/35 text-[#ff8080] border border-[#FF0000]/40 transition">
+            + YouTube
+          </button>
+          <button onclick="simulateChatMessage('announcement')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 transition">
+            + Announcement 📢
+          </button>
+          <button onclick="simulateChatMessage('emotes')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-pink-500/20 hover:bg-pink-500/35 text-pink-300 border border-pink-500/40 transition">
+            + Animated Emotes
+          </button>
+          <button onclick="simulateChatMessage('bot')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-slate-700/60 hover:bg-slate-700 text-slate-300 border border-white/10 transition" title="Test Bot Message Filter">
+            + Bot Msg
+          </button>
+          <button onclick="simulateChatMessage('swear_link')" class="px-2.5 py-1 rounded-md text-xs font-bold bg-orange-500/20 hover:bg-orange-500/35 text-orange-300 border border-orange-500/40 transition" title="Test Swear & Link Filter">
+            + Swear/Link
+          </button>
+          <button onclick="simulateBanOrDelete()" class="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-600/25 hover:bg-rose-600/40 text-rose-300 border border-rose-500/40 transition" title="Simulate Streamer Banning or Deleting Last User">
+            🔨 Ban / Delete Last
+          </button>
+          <button onclick="clearAllMessages()" class="px-2 py-1 rounded-md text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 transition">
+            Clear
+          </button>
+        </div>
+
+        <!-- Stage Controls (Auto-Sim + Preview Backdrop) -->
+        <div class="flex items-center gap-2">
+          <label class="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-md cursor-pointer">
+            <input id="auto-sim-toggle" type="checkbox" checked onchange="toggleAutoSimulator(this.checked)" class="w-3.5 h-3.5 accent-emerald-400 rounded" />
+            <span>Auto-Simulate Chat</span>
+          </label>
+
+          <select id="stage-backdrop-select" onchange="changeStageBackdrop(this.value)" class="bg-[#161926] border border-white/10 rounded-md px-2 py-1 text-xs text-slate-300">
+            <option value="checkerboard">OBS Checkerboard</option>
+            <option value="game">Simulated Game Stream</option>
+            <option value="dark">Pure Dark</option>
+            <option value="green">Chroma Green</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- LIVE OVERLAY PREVIEW CANVAS -->
+      <div id="preview-stage-wrapper" class="flex-1 relative obs-checkerboard flex items-center justify-center p-4 md:p-8 overflow-hidden">
+        <!-- Floating Live Badge -->
+        <div class="absolute top-3 left-3 z-20 flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/70 border border-white/10 backdrop-blur-md text-[11px] text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>LIVE OBS OVERLAY PREVIEW</span>
+          <span id="filter-toast" class="hidden ml-2 px-2 py-0.5 rounded bg-rose-500/30 text-rose-200 border border-rose-500/40 text-[10px] font-bold"></span>
+        </div>
+
+        <!-- THE ACTUAL CHAT OVERLAY CONTAINER (Mirrors Exported OBS Overlay 1:1) -->
+        <div id="obs-overlay-root" class="w-full max-w-[540px] h-full max-h-[760px] flex flex-col justify-end relative overflow-hidden rounded-xl transition-all duration-300">
+          <div id="chat-messages-list" class="w-full flex flex-col justify-end overflow-hidden p-3"></div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- ==================== EXPORT / COPY HTML MODAL ==================== -->
+  <div id="export-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-[#11131c] border border-white/15 rounded-2xl max-w-4xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-white/10 flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="file-code" class="w-5 h-5 text-purple-400"></i>
+            Standalone OBS Studio Browser Source HTML (<code class="mono text-purple-300">obs-chat-overlay.html</code>)
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Add this exported file as a Local File in an OBS Browser Source (Recommended size: Width <code class="mono">550</code>, Height <code class="mono">800</code>).
+          </p>
+        </div>
+        <button onclick="closeExportModal()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-4 flex-1 overflow-hidden flex flex-col gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+          <div class="p-2.5 rounded-lg bg-[#0b0d14] border border-white/10">
+            <div class="font-bold text-purple-300">1. Streamer.bot WebSocket</div>
+            <div class="text-slate-400 text-[11px] mt-0.5">In Streamer.bot: <span class="text-white">Servers/Clients → WebSocket Server → Enable Auto Start</span> (<code class="mono">127.0.0.1:8080</code>).</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[#0b0d14] border border-white/10">
+            <div class="font-bold text-cyan-300">2. Local image.png / sound.mp3</div>
+            <div class="text-slate-400 text-[11px] mt-0.5">If using <code class="mono">image.png</code> border, place <code class="mono">image.png</code> in the exact same folder as your exported HTML file.</div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[#0b0d14] border border-white/10">
+            <div class="font-bold text-emerald-300">3. OBS Studio Audio Control</div>
+            <div class="text-slate-400 text-[11px] mt-0.5">In OBS Browser Source properties, check <span class="text-white">"Control audio via OBS"</span> if you want to adjust chat volume in OBS.</div>
+          </div>
+        </div>
+
+        <textarea
+          id="export-code-textarea"
+          readonly
+          class="w-full flex-1 bg-[#08090e] text-emerald-300 mono text-[11px] p-3 rounded-xl border border-white/10 focus:outline-none resize-none"
+        ></textarea>
+      </div>
+
+      <div class="p-4 border-t border-white/10 flex items-center justify-between bg-[#0d0f17]">
+        <span id="copy-feedback-msg" class="text-xs text-emerald-400 font-semibold"></span>
+        <div class="flex items-center gap-2">
+          <button onclick="copyExportedHtmlCode()" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-white/10 flex items-center gap-1.5">
+            <i data-lucide="copy" class="w-4 h-4"></i>
+            <span>Copy HTML Code</span>
+          </button>
+          <button onclick="downloadObsOverlayHtml()" class="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-emerald-500 hover:from-purple-500 hover:to-emerald-400 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download obs-chat-overlay.html</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STUDIO ENGINE SCRIPT ==================== -->
+  <script>
+    /*************************************************************************
+     * 1. MASTER CATALOGS: 108 STYLES, 108 EFFECTS, 112 FONTS, 108 SOUNDS
+     *************************************************************************/
+
+    // --- 108 CHAT STYLES (9 per category across 12 categories = 108 styles) ---
+    const STYLE_CATEGORIES = [
+      { id: 'Bubbles', label: '💬 Bubbles', base: { radius: 18, borderW: 1, blur: 4, layout: 'stacked', shadow: 'soft' } },
+      { id: 'Plain', label: '📝 Plain Text', base: { radius: 0, borderW: 0, blur: 0, layout: 'inline', shadow: 'none', transparentCard: true } },
+      { id: 'Glass', label: '🧊 Glassmorphism', base: { radius: 14, borderW: 1, blur: 16, layout: 'stacked', shadow: 'glass' } },
+      { id: 'Cyberpunk', label: '⚡ Cyberpunk', base: { radius: 4, borderW: 2, blur: 6, layout: 'stacked', shadow: 'neon', clip: 'cyber' } },
+      { id: 'Esports', label: '🏆 Esports HUD', base: { radius: 6, borderW: 2, blur: 8, layout: 'stacked', shadow: 'hud', accentLeft: 6 } },
+      { id: 'Retro', label: '🕹️ Retro Arcade', base: { radius: 0, borderW: 3, blur: 0, layout: 'inline', shadow: 'pixel' } },
+      { id: 'Minimal', label: '✨ Minimal Clean', base: { radius: 8, borderW: 1, blur: 0, layout: 'inline', shadow: 'subtle' } },
+      { id: 'RPG', label: '⚔️ RPG & Anime', base: { radius: 12, borderW: 2, blur: 6, layout: 'stacked', shadow: 'rpg' } },
+      { id: 'Comic', label: '💥 Comic Pop', base: { radius: 16, borderW: 3, blur: 0, layout: 'stacked', shadow: 'comic' } },
+      { id: 'Brutalist', label: '🧱 Neo-Brutalist', base: { radius: 2, borderW: 3, blur: 0, layout: 'stacked', shadow: 'brutal' } },
+      { id: 'Luxury', label: '👑 Royal Luxury', base: { radius: 12, borderW: 1, blur: 10, layout: 'stacked', shadow: 'gold' } },
+      { id: 'Terminal', label: '💻 Hacker Terminal', base: { radius: 4, borderW: 1, blur: 2, layout: 'inline', shadow: 'terminal' } }
+    ];
+
+    const STYLE_VARIANTS = [
+      { suffix: 'Classic', bg: 'rgba(20, 24, 38, 0.88)', border: 'rgba(255,255,255,0.14)', accent: '#8b5cf6', modRadius: 0, accentBar: 'left' },
+      { suffix: 'Soft Pill', bg: 'rgba(28, 32, 50, 0.90)', border: 'rgba(167,139,250,0.35)', accent: '#a855f7', modRadius: 10, accentBar: 'none' },
+      { suffix: 'Dark Obsidian', bg: 'rgba(9, 11, 18, 0.95)', border: 'rgba(255,255,255,0.09)', accent: '#38bdf8', modRadius: -2, accentBar: 'left' },
+      { suffix: 'Neon Edge', bg: 'rgba(17, 15, 32, 0.86)', border: 'rgba(236,72,153,0.6)', accent: '#ec4899', modRadius: 2, accentBar: 'left' },
+      { suffix: 'Emerald Matrix', bg: 'rgba(8, 26, 20, 0.88)', border: 'rgba(16,185,129,0.55)', accent: '#10b981', modRadius: 0, accentBar: 'bottom' },
+      { suffix: 'Sunset Horizon', bg: 'linear-gradient(135deg, rgba(46,16,101,0.88), rgba(124,45,18,0.82))', border: 'rgba(251,146,60,0.45)', accent: '#f97316', modRadius: 4, accentBar: 'none' },
+      { suffix: 'Arctic Frost', bg: 'rgba(15, 29, 48, 0.78)', border: 'rgba(125,211,252,0.45)', accent: '#38bdf8', modRadius: 6, accentBar: 'left' },
+      { suffix: 'Crimson Core', bg: 'rgba(38, 12, 20, 0.90)', border: 'rgba(244,63,94,0.55)', accent: '#f43f5e', modRadius: 0, accentBar: 'right' },
+      { suffix: 'Gold Prestige', bg: 'rgba(28, 22, 12, 0.92)', border: 'rgba(250,204,21,0.55)', accent: '#eab308', modRadius: 3, accentBar: 'left' }
+    ];
+
+    const CHAT_STYLES_108 = [];
+    STYLE_CATEGORIES.forEach((cat, cIdx) => {
+      STYLE_VARIANTS.forEach((v, vIdx) => {
+        const index = cIdx * 9 + vIdx + 1;
+        const isPlain = cat.id === 'Plain';
+        CHAT_STYLES_108.push({
+          id: `style_${index}`,
+          index,
+          name: `${cat.id} ${v.suffix}`,
+          category: cat.id,
+          bg: isPlain ? (vIdx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.35)') : v.bg,
+          border: isPlain ? 'transparent' : v.border,
+          accent: v.accent,
+          radius: Math.max(0, cat.base.radius + v.modRadius),
+          borderW: isPlain ? 0 : cat.base.borderW,
+          blur: cat.base.blur,
+          layout: vIdx % 3 === 2 ? (cat.base.layout === 'stacked' ? 'inline' : 'stacked') : cat.base.layout,
+          shadowType: cat.base.shadow,
+          clip: cat.base.clip || 'none',
+          accentBar: isPlain ? (vIdx % 2 === 1 ? 'left' : 'none') : v.accentBar,
+          transparentCard: isPlain && vIdx % 2 === 0
+        });
+      });
+    });
+
+    // --- 108 IN/OUT & SLIDING ANIMATION EFFECTS (9 per category across 12 categories = 108 effects) ---
+    const EFFECT_CATEGORIES = [
+      'Slide', 'Bounce', 'Elastic', '3D Flip', 'Glitch', 'Zoom',
+      'Spin & Swirl', 'Skew & Slash', 'Blur & Fade', 'Drop & Gravity', 'Laser & Neon', 'Origami & Fancy'
+    ];
+
+    const EFFECT_NAMES_BY_CAT = {
+      'Slide': ['Slide In Left Smooth', 'Slide In Right Smooth', 'Slide Up Crisp', 'Slide Down Drop', 'Slide Diagonal TL', 'Slide Diagonal BL', 'Slide Overshoot Left', 'Slide Overshoot Right', 'Velvet Glide Up'],
+      'Bounce': ['Bounce Pop In', 'Bounce Left Spring', 'Bounce Right Spring', 'Bounce Up High', 'Bounce Down Heavy', 'Double Tap Bounce', 'Trampoline Pop', 'Rubber Ball Entry', 'Pogo Jump In'],
+      'Elastic': ['Elastic Stretch X', 'Elastic Stretch Y', 'Jelly Wobble In', 'Slingshot Left', 'Slingshot Right', 'Gummy Bear Pop', 'Slinky Uncoil', 'Bungee Cord Drop', 'Whip Snap In'],
+      '3D Flip': ['3D Flip Horizontal X', '3D Flip Vertical Y', '3D Card Deal Spin', '3D Door Swing Left', '3D Door Swing Right', '3D Hinge Drop Top', '3D Cube Roll Up', '3D Perspective Dive', '3D Billboard Unfold'],
+      'Glitch': ['Cyber Glitch Slice', 'RGB Split Jitter', 'Matrix Digital Rain', 'Signal Distortion', 'VHS Tape Tracking', 'Holo Flicker Entry', 'Data Corrupt Pop', 'EMP Shockwave', 'Quantum Teleport'],
+      'Zoom': ['Zoom Hyper Pop', 'Zoom Out From Giant', 'Portal Vortex Zoom', 'Sniper Scope Zoom', 'Heartbeat Thump Zoom', 'Supernova Expand', 'Implode To Normal', 'Camera Lens Snap', 'Warp Speed Arrival'],
+      'Spin & Swirl': ['Tornado Spin In', 'Frisbee Throw Left', 'Frisbee Throw Right', 'Boomerang Curve', 'Spiral Galaxy In', 'Clockwork Gear Turn', 'Pinwheel Twirl', 'Corkscrew Pop', 'Vinyl Record Spin'],
+      'Skew & Slash': ['Katana Slash Left', 'Katana Slash Right', 'Speedline Skew X', 'Italic Drift In', 'Parallelogram Snap', 'Sonic Boom Shear', 'Lightning Bolt Skew', 'Drift Car Slide', 'Ninja Dash Cut'],
+      'Blur & Fade': ['Cinematic Motion Blur', 'Dreamy Mist Reveal', 'Ghostly Apparition', ' Bokeh Focus Pull', 'Smoke Puff Fade', ' Mirage Shimmer In', 'Soft Feather Rise', 'Frost Thaw Fade', 'Ethereal Glow Fade'],
+      'Drop & Gravity': ['Meteor Strike Drop', 'Anvil Heavy Slam', 'Feather Float Down', 'Parachute Drift', 'Waterfall Cascade', 'Tetris Block Lock', 'Domino Topple In', 'Pendulum Drop Swing', 'Elevator Floor Stop'],
+      'Laser & Neon': ['Laser Beam Scanline', 'Neon Tube Ignite', 'Plasma Arc Flash', 'Cybernetic Wipe', 'Photon Torpedo Hit', 'Tron Lightcycle Trail', 'Synthwave Grid Rise', 'Strobe Flash Entry', 'Ion Cannon Reveal'],
+      'Origami & Fancy': ['Origami Paper Unfold', 'Scroll Unroll Vertical', 'Curtain Stage Open', 'Typewriter Snap', 'Accordion Expand', 'Pop-Up Book Rise', 'Jack-in-the-Box', 'confetti Burst Pop', 'Royal Carpet Roll']
+    };
+
+    const CHAT_EFFECTS_108 = [];
+    EFFECT_CATEGORIES.forEach((cat, cIdx) => {
+      EFFECT_NAMES_BY_CAT[cat].forEach((name, vIdx) => {
+        const index = cIdx * 9 + vIdx + 1;
+        CHAT_EFFECTS_108.push({
+          id: `fx_${index}`,
+          index,
+          name,
+          category: cat,
+          catIndex: cIdx,
+          varIndex: vIdx
+        });
+      });
+    });
+
+    // --- 112 FONTS (27 Windows System Fonts + 85 Google Fonts = 112 Fonts) ---
+    const WINDOWS_FONTS_27 = [
+      'Segoe UI', 'Arial', 'Arial Black', 'Bahnschrift', 'Calibri', 'Cambria', 'Candara',
+      'Comic Sans MS', 'Consolas', 'Constantia', 'Corbel', 'Courier New', 'Ebrima',
+      'Franklin Gothic Medium', 'Gabriola', 'Gadugi', 'Georgia', 'Impact', 'Ink Free',
+      'Lucida Console', 'Lucida Sans Unicode', 'Microsoft Sans Serif', 'Palatino Linotype',
+      'Segoe Print', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'
+    ].slice(0, 27);
+
+    const GOOGLE_FONTS_85 = [
+      'Inter', 'Roboto', 'Poppins', 'Montserrat', 'Open Sans', 'Lato', 'Oswald', 'Raleway',
+      'Nunito', 'Ubuntu', 'Playfair Display', 'Merriweather', 'Rubik', 'Kanit', 'Work Sans',
+      'Fira Sans', 'Quicksand', 'Barlow', 'Mulish', 'Titillium Web', 'Inconsolata', 'Bebas Neue',
+      'Anton', 'Josefin Sans', 'Libre Baskerville', 'Mukta', 'Dosis', 'PT Sans', 'Hind', 'Cabin',
+      'Teko', 'Fjalla One', 'Arvo', 'Exo 2', 'Orbitron', 'Rajdhani', 'Chakra Petch', 'Russo One',
+      'Press Start 2P', 'Bangers', 'Permanent Marker', 'Pacifico', 'Caveat', 'Shadows Into Light',
+      'Indie Flower', 'Amatic SC', 'Lobster', 'Comfortaa', 'Righteous', 'Fredoka', 'Cinzel',
+      'Abril Fatface', 'Alfa Slab One', 'Bungee', 'Special Elite', 'Monoton', 'Creepster',
+      'Audiowide', 'VT323', 'Share Tech Mono', 'Space Mono', 'JetBrains Mono', 'Fira Code',
+      'Source Code Pro', 'IBM Plex Mono', 'Space Grotesk', 'Syne', 'Plus Jakarta Sans', 'Outfit',
+      'Manrope', 'Urbanist', 'Lexend', 'Sora', 'Be Vietnam Pro', 'Epilogue', 'Red Hat Display',
+      'Chivo', 'Asap', 'Catamaran', 'Public Sans', 'Signika', 'Silkscreen', 'Oxanium',
+      'Black Ops One', 'Michroma'
+    ];
+
+    const CHAT_FONTS_112 = [
+      ...WINDOWS_FONTS_27.map((f, i) => ({ id: f, name: f, source: 'Windows System', index: i + 1 })),
+      ...GOOGLE_FONTS_85.map((f, i) => ({ id: f, name: f, source: 'Google Fonts', index: i + 28 }))
+    ];
+
+    // --- 108 PROCEDURAL SYNTHESIZED SOUNDS ---
+    const SOUND_CATEGORIES = [
+      'UI Pops & Clicks', 'Retro 8-Bit Arcade', 'Sci-Fi & Lasers', 'Chimes & Crystals',
+      'Musical Chords', 'Bubbles & Drops', 'Cyber Glitches', 'Notifications', 'Synth Plucks', 'Bass & Impacts'
+    ];
+
+    const CHAT_SOUNDS_108 = [];
+    for (let i = 1; i <= 108; i++) {
+      const cat = SOUND_CATEGORIES[(i - 1) % SOUND_CATEGORIES.length];
+      const waveTypes = ['sine', 'triangle', 'square', 'sawtooth'];
+      const wave = waveTypes[(i - 1) % 4];
+      const baseFreq = 180 + ((i * 53) % 920);
+      const endFreq = 220 + ((i * 137) % 1400);
+      const duration = 0.08 + ((i % 7) * 0.045);
+      const hasSecondNote = i % 2 === 0;
+      const secondRatio = 1.25 + ((i % 5) * 0.15);
+      const hasThirdNote = i % 3 === 0;
+
+      const soundFlavorNames = [
+        'Crisp Pop', 'Arcade Coin', 'Laser Zap', 'Crystal Ting', 'Major Bell',
+        'Water Droplet', 'Data Blip', 'Stream Ping', 'Pluck Synth', 'Sub Thump',
+        'Bubble Snap', 'Power Up', 'Plasma Beam', 'Diamond Chime', 'Dream Chord',
+        'Aqua Plop', 'Matrix Beep', 'Discordant Ding', 'Harp Pluck', '808 Knock'
+      ];
+      const flavor = soundFlavorNames[(i - 1) % soundFlavorNames.length];
+
+      CHAT_SOUNDS_108.push({
+        id: `snd_${i}`,
+        index: i,
+        name: `#${i} ${flavor} (${cat.split(' ')[0]})`,
+        category: cat,
+        wave,
+        baseFreq,
+        endFreq,
+        duration: Number(duration.toFixed(3)),
+        hasSecondNote,
+        secondRatio: Number(secondRatio.toFixed(2)),
+        hasThirdNote
+      });
+    }
+
+    // --- BUILT-IN ANIMATED & CUSTOM EMOTES ---
+    const BUILTIN_EMOTES = {
+      'catJAM': { type: 'svg', anim: 'anim-emote-jam', label: '🐱🎧', bg: '#a855f7' },
+      'PogChamp': { type: 'svg', anim: 'anim-emote-pulse', label: '😲🔥', bg: '#f59e0b' },
+      'KEKW': { type: 'svg', anim: 'anim-emote-shake', label: '🤣💨', bg: '#ef4444' },
+      'pepeD': { type: 'svg', anim: 'anim-emote-bounce', label: '🐸🕺', bg: '#22c55e' },
+      'HYPERS': { type: 'svg', anim: 'anim-emote-bounce', label: '🤩⚡', bg: '#3b82f6' },
+      'GG': { type: 'svg', anim: 'anim-emote-pulse', label: '🏆GG', bg: '#eab308' },
+      'FIRE': { type: 'svg', anim: 'anim-emote-pulse', label: '🔥💯', bg: '#f97316' },
+      'LULW': { type: 'svg', anim: 'anim-emote-shake', label: '😂👏', bg: '#ec4899' },
+      'OMEGALUL': { type: 'svg', anim: 'anim-emote-spin', label: '🌀😂', bg: '#8b5cf6' },
+      'EZ': { type: 'svg', anim: 'anim-emote-bounce', label: '😎👌', bg: '#10b981' },
+      'Clap': { type: 'svg', anim: 'anim-emote-jam', label: '👏✨', bg: '#fbbf24' },
+      'Heart': { type: 'svg', anim: 'anim-emote-pulse', label: '💜💖', bg: '#f43f5e' }
+    };
+
+    /*************************************************************************
+     * 2. STUDIO CONFIGURATION STATE (SAVED & EXPORTED TO OBS)
+     *************************************************************************/
+    const DEFAULT_CONFIG = {
+      wsUrl: 'ws://127.0.0.1:8080/',
+      // Style & Layout
+      styleId: 'style_19', // Glass Classic
+      messageLayout: 'style_default', // style_default | stacked | inline
+      messageAlign: 'left', // left | right | alternating
+      messageGap: 10,
+      cardPadding: 12,
+      // Effects
+      animationId: 'random', // 'random' or fx_1 .. fx_108
+      animationDuration: 450,
+      outEffect: 'fade_up',
+      smoothStackSlide: true,
+      // Font
+      fontFamily: 'Inter',
+      fontSource: 'Google Fonts',
+      fontSize: 15,
+      lineHeight: 1.4,
+      usernameWeight: '700',
+      textShadowMode: 'soft',
+      // Audio
+      soundId: 'random', // 'random' | 'none' | 'custom_file' | snd_1 .. snd_108
+      soundVolume: 65,
+      customSoundFile: './sound.mp3',
+      // Colors & Platforms
+      colorMode: 'platform', // 'platform' | 'user_color' | 'custom'
+      colorScope: 'accent_and_name', // 'full_bubble' | 'accent_and_name' | 'username_only' | 'full_text'
+      twitchColor: '#9146FF',
+      youtubeColor: '#FF0000',
+      kickColor: '#53FC18',
+      customTextColor: '#F8FAFC',
+      customUsernameColor: '#C084FC',
+      customBubbleBg: '#181B28',
+      bubbleOpacity: 88,
+      // Background & Local image.png
+      bgMode: 'transparent', // 'transparent' | 'image_png' | 'solid' | 'fade'
+      imagePngMode: 'message_border', // 'message_border' | 'container_border' | 'message_bg' | 'container_bg'
+      imagePngPath: './image.png',
+      imagePngPreviewDataUrl: '', // Only used for live browser preview when user uploads a file
+      imagePngSlice: 28,
+      imagePngWidth: 12,
+      bgColor1: '#0d101b',
+      bgColor2: '#2e1065',
+      bgOpacity: 75,
+      bgGradientAngle: 180,
+      topFadeMask: true,
+      // Badges, Avatars, Emotes
+      showAvatars: true,
+      avatarShape: 'circle', // 'circle' | 'rounded' | 'hexagon'
+      avatarSize: 32,
+      showPlatformBadge: true,
+      showBadges: true,
+      showTimestamp: false,
+      showEmotes: true,
+      showAnimatedEmotes: true,
+      emoteSize: 28,
+      customEmotes: [
+        { code: 'STREAMER', url: 'https://placehold.co/64x64/9146ff/ffffff?text=VIP' }
+      ],
+      // Limits, Timer & Moderation
+      maxMessages: 15,
+      showAlways: true,
+      hideAfterValue: 30,
+      hideAfterUnit: 'seconds', // 'seconds' | 'minutes'
+      deleteOnBanOrDelete: true,
+      showBotMessages: false,
+      botNamesList: 'Nightbot, StreamElements, Fossabot, Moobot, Streamlabs, Wizebot, BotRix, KickBot',
+      filterSwears: true,
+      swearAction: 'asterisk', // 'asterisk' | 'block'
+      swearWordsList: 'fuck, shit, bitch, asshole, cunt, dick, bastard, slut, whore, dumbass, stfu',
+      filterLinks: true,
+      linkAction: 'replace', // 'replace' | 'block'
+      // Announcements
+      announcementPop: true,
+      announcementTheme: 'gold_royal',
+      announcementTitle: '📢 STREAM ANNOUNCEMENT',
+      announcementSound: true
+    };
+
+    let CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    let activeStyleCategory = 'All';
+    let activeEffectCategory = 'All';
+    let activeFontCategory = 'All';
+    let activeSoundCategory = 'All';
+    let messageAlternator = 0;
+    let activeMessages = []; // { id, userId, username, platform, domEl, timerId }
+
+    /*************************************************************************
+     * 3. PROCEDURAL WEB AUDIO SYNTHESIZER (108 SOUNDS + FANFARE)
+     *************************************************************************/
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+
+    function playProceduralSound(soundId, isAnnouncement = false) {
+      if (isAnnouncement && CONFIG.announcementSound) {
+        playAnnouncementFanfare();
+        return;
+      }
+      if (CONFIG.soundId === 'none' && !soundId) return;
+
+      const targetId = soundId || CONFIG.soundId;
+      if (targetId === 'none') return;
+
+      if (targetId === 'custom_file') {
+        try {
+          const audio = new Audio(CONFIG.customSoundFile || './sound.mp3');
+          audio.volume = Math.min(1, Math.max(0, CONFIG.soundVolume / 100));
+          audio.play().catch(() => {});
+        } catch (e) {}
+        return;
+      }
+
+      let preset = null;
+      if (targetId === 'random') {
+        preset = CHAT_SOUNDS_108[Math.floor(Math.random() * CHAT_SOUNDS_108.length)];
+      } else {
+        preset = CHAT_SOUNDS_108.find(s => s.id === targetId) || CHAT_SOUNDS_108[0];
+      }
+
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+      const vol = (CONFIG.soundVolume / 100) * 0.35;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.01, vol), now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + preset.duration);
+      gain.connect(ctx.destination);
+
+      const osc1 = ctx.createOscillator();
+      osc1.type = preset.wave;
+      osc1.frequency.setValueAtTime(preset.baseFreq, now);
+      osc1.frequency.exponentialRampToValueAtTime(preset.endFreq, now + preset.duration * 0.85);
+      osc1.connect(gain);
+      osc1.start(now);
+      osc1.stop(now + preset.duration);
+
+      if (preset.hasSecondNote) {
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(preset.baseFreq * preset.secondRatio, now + preset.duration * 0.35);
+        osc2.connect(gain);
+        osc2.start(now + preset.duration * 0.35);
+        osc2.stop(now + preset.duration);
+      }
+
+      if (preset.hasThirdNote) {
+        const osc3 = ctx.createOscillator();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(preset.endFreq * 1.5, now + preset.duration * 0.6);
+        osc3.connect(gain);
+        osc3.start(now + preset.duration * 0.6);
+        osc3.stop(now + preset.duration);
+      }
+    }
+
+    function playAnnouncementFanfare() {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 E5 G5 C6
+      const vol = (CONFIG.soundVolume / 100) * 0.3;
+      notes.forEach((freq, idx) => {
+        const start = ctx.currentTime + idx * 0.075;
+        const dur = 0.28;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.001, start);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.01, vol), start + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+        g.connect(ctx.destination);
+
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, start);
+        osc.connect(g);
+        osc.start(start);
+        osc.stop(start + dur);
+      });
+    }
+
+    function testSelectedSound() {
+      playProceduralSound(CONFIG.soundId, false);
+    }
+
+    /*************************************************************************
+     * 4. DYNAMIC CSS ANIMATION ENGINE (108 IN EFFECTS + OUT EFFECTS)
+     *************************************************************************/
+    function generateAnimationEngineCSS() {
+      let css = `
+        @keyframes out_fade_up { to { opacity: 0; transform: translateY(-22px) scale(0.95); } }
+        @keyframes out_fade_left { to { opacity: 0; transform: translateX(-60px) scale(0.95); } }
+        @keyframes out_fade_right { to { opacity: 0; transform: translateX(60px) scale(0.95); } }
+        @keyframes out_scale_down { to { opacity: 0; transform: scale(0.2); } }
+        @keyframes out_blur_dissolve { to { opacity: 0; filter: blur(14px); transform: scale(1.08); } }
+        @keyframes out_glitch_out {
+          0% { opacity: 1; transform: skewX(0); }
+          40% { opacity: 0.8; transform: translateX(18px) skewX(25deg); filter: hue-rotate(90deg); }
+          75% { opacity: 0.4; transform: translateX(-25px) skewX(-25deg); }
+          100% { opacity: 0; transform: scaleY(0.05); }
+        }
+        @keyframes out_flip_out { to { opacity: 0; transform: perspective(600px) rotateX(85deg); } }
+      `;
+
+      CHAT_EFFECTS_108.forEach(fx => {
+        const v = fx.varIndex + 1;
+        let kf = '';
+        switch (fx.category) {
+          case 'Slide': {
+            const dirs = [
+              `translateX(-${45 + v * 8}px)`, `translateX(${45 + v * 8}px)`,
+              `translateY(${35 + v * 6}px)`, `translateY(-${35 + v * 6}px)`,
+              `translate(-40px, -30px)`, `translate(-40px, 30px)`,
+              `translateX(-75px) scale(0.92)`, `translateX(75px) scale(0.92)`, `translateY(55px) scale(0.96)`
+            ];
+            kf = `0% { opacity: 0; transform: ${dirs[fx.varIndex]}; } 100% { opacity: 1; transform: translate(0,0) scale(1); }`;
+            break;
+          }
+          case 'Bounce': {
+            const shift = fx.varIndex % 2 === 0 ? `translateY(${25 + v * 5}px)` : `translateX(-${25 + v * 5}px)`;
+            kf = `
+              0% { opacity: 0; transform: ${shift} scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -${4 + v}px) scale(${1.04 + v * 0.008}); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+            `;
+            break;
+          }
+          case 'Elastic': {
+            const sx = 1.25 + v * 0.03;
+            const sy = 0.72 - v * 0.02;
+            kf = `
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(${sx.toFixed(2)}, ${sy.toFixed(2)}, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+            `;
+            break;
+          }
+          case '3D Flip': {
+            const rot = fx.varIndex % 2 === 0 ? `rotateX(${65 + v * 6}deg)` : `rotateY(${65 + v * 6}deg)`;
+            kf = `
+              0% { opacity: 0; transform: perspective(700px) ${rot} translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+            `;
+            break;
+          }
+          case 'Glitch': {
+            const sk = 12 + v * 3;
+            kf = `
+              0% { opacity: 0; transform: translateX(-25px) skewX(${sk}deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-${sk}deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+            `;
+            break;
+          }
+          case 'Zoom': {
+            const startScale = fx.varIndex % 2 === 0 ? (0.15 + v * 0.04) : (1.45 + v * 0.06);
+            kf = `
+              0% { opacity: 0; transform: scale(${startScale.toFixed(2)}); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(${fx.varIndex % 2 === 0 ? 1.04 : 0.97}); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+            `;
+            break;
+          }
+          case 'Spin & Swirl': {
+            const deg = (fx.varIndex % 2 === 0 ? 1 : -1) * (25 + v * 15);
+            kf = `
+              0% { opacity: 0; transform: rotate(${deg}deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(${-deg * 0.08}deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+            `;
+            break;
+          }
+          case 'Skew & Slash': {
+            const skewDeg = (fx.varIndex % 2 === 0 ? 1 : -1) * (18 + v * 3);
+            kf = `
+              0% { opacity: 0; transform: translateX(-55px) skewX(${skewDeg}deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(${-skewDeg * 0.25}deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+            `;
+            break;
+          }
+          case 'Blur & Fade': {
+            const blurPx = 8 + v * 2;
+            kf = `
+              0% { opacity: 0; filter: blur(${blurPx}px) brightness(1.6); transform: translateY(${8 + v * 2}px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+            `;
+            break;
+          }
+          case 'Drop & Gravity': {
+            const dropY = 40 + v * 8;
+            kf = `
+              0% { opacity: 0; transform: translateY(-${dropY}px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+            `;
+            break;
+          }
+          case 'Laser & Neon': {
+            kf = `
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+            `;
+            break;
+          }
+          default: { // Origami & Fancy
+            kf = `
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+            `;
+            break;
+          }
+        }
+        css += `@keyframes ${fx.id} { ${kf} }\n`;
+      });
+
+      return css;
+    }
+
+    /*************************************************************************
+     * 5. PLATFORM BADGES & AVATAR RESOLVER
+     *************************************************************************/
+    function getPlatformIconSVG(platform) {
+      const p = (platform || 'twitch').toLowerCase();
+      if (p === 'kick') {
+        return `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#53FC18] text-black font-black text-[10px] shrink-0" title="Kick">K</span>`;
+      }
+      if (p === 'youtube') {
+        return `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#FF0000] text-white shrink-0" title="YouTube">
+          <svg viewBox="0 0 24 24" class="w-3 h-3 fill-current"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+        </span>`;
+      }
+      // Twitch default
+      return `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#9146FF] text-white shrink-0" title="Twitch">
+        <svg viewBox="0 0 24 24" class="w-3 h-3 fill-current"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.6V6zM4.5 2L2 6.5v13h4.5V22l2.5-2.5h3.5L20 12V2H4.5zm14 9.3l-3 3H11l-2.5 2.5v-2.5H5.5V3.5h13v7.8z"/></svg>
+      </span>`;
+    }
+
+    function getRoleBadgeHTML(badge) {
+      if (typeof badge === 'object' && badge !== null && badge.imageUrl) {
+        return `<img src="${badge.imageUrl}" alt="${badge.name || 'badge'}" class="w-4 h-4 inline-block rounded-sm object-contain shrink-0" />`;
+      }
+      const b = String(badge.name || badge).toLowerCase();
+      if (b.includes('broadcaster') || b.includes('owner') || b.includes('host')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Broadcaster">🎥 HOST</span>`;
+      }
+      if (b.includes('mod')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-emerald-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Moderator">⚔️ MOD</span>`;
+      }
+      if (b.includes('vip')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-pink-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="VIP">💎 VIP</span>`;
+      }
+      if (b.includes('founder')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-purple-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Founder">👑 1ST</span>`;
+      }
+      if (b.includes('sub') || b.includes('member')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Subscriber">⭐ SUB</span>`;
+      }
+      if (b.includes('verified') || b.includes('partner')) {
+        return `<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-sky-500 text-white text-[10px] font-bold shrink-0" title="Verified">✓</span>`;
+      }
+      return '';
+    }
+
+    function resolveAvatarUrl(msg) {
+      if (msg.avatar && msg.avatar.startsWith('http')) return msg.avatar;
+      const cleanUser = encodeURIComponent((msg.username || 'Streamer').replace(/[^a-zA-Z0-9_-]/g, ''));
+      const plat = (msg.platform || 'twitch').toLowerCase();
+      if (plat === 'twitch') return `https://unavatar.io/twitch/${cleanUser}?fallback=https://placehold.co/64x64/9146ff/ffffff?text=${cleanUser.slice(0,2).toUpperCase()}`;
+      if (plat === 'youtube') return `https://unavatar.io/youtube/${cleanUser}?fallback=https://placehold.co/64x64/ff0000/ffffff?text=${cleanUser.slice(0,2).toUpperCase()}`;
+      return `https://placehold.co/64x64/53fc18/050505?text=${cleanUser.slice(0,2).toUpperCase()}`;
+    }
+
+    /*************************************************************************
+     * 6. MODERATION FILTERS (BOTS, SWEAR WORDS, WEB LINKS) & EMOTE PARSER
+     *************************************************************************/
+    function isBotUser(username, isBotFlag) {
+      if (isBotFlag) return true;
+      const list = (CONFIG.botNamesList || '')
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean);
+      return list.includes((username || '').trim().toLowerCase());
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function applyTextModerationFilters(rawText) {
+      let text = String(rawText || '');
+
+      // 1. Web Link Filter
+      if (CONFIG.filterLinks) {
+        const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|\b[a-zA-Z0-9-]+\.(com|tv|gg|net|org|xyz|io|me|co|live)(\/[^\s]*)?)/gi;
+        if (urlRegex.test(text)) {
+          if (CONFIG.linkAction === 'block') {
+            return { blocked: true, reason: 'Blocked Web Link' };
+          }
+          text = text.replace(urlRegex, '[link removed]');
+        }
+      }
+
+      // 2. Swear Words Filter
+      if (CONFIG.filterSwears) {
+        const words = (CONFIG.swearWordsList || '')
+          .split(',')
+          .map(w => w.trim())
+          .filter(Boolean);
+        for (const bad of words) {
+          const escapedBad = bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const rgx = new RegExp(`\\b${escapedBad}\\b`, 'gi');
+          if (rgx.test(text)) {
+            if (CONFIG.swearAction === 'block') {
+              return { blocked: true, reason: 'Blocked Swear Word' };
+            }
+            text = text.replace(rgx, '****');
+          }
+        }
+      }
+
+      return { blocked: false, text };
+    }
+
+    function renderTextWithEmotes(cleanText, payloadEmotes = []) {
+      let html = escapeHtml(cleanText);
+      if (!CONFIG.showEmotes) return html;
+
+      const sizePx = CONFIG.emoteSize || 28;
+
+      // Replace payload emotes from Streamer.bot if present
+      if (Array.isArray(payloadEmotes) && payloadEmotes.length > 0) {
+        payloadEmotes.forEach(em => {
+          if (em && em.name && em.imageUrl) {
+            const safeName = escapeHtml(em.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const rgx = new RegExp(`\\b${safeName}\\b`, 'g');
+            html = html.replace(
+              rgx,
+              `<img src="${em.imageUrl}" alt="${escapeHtml(em.name)}" style="height:${sizePx}px; width:auto; display:inline-block; vertical-align:middle; margin:0 2px;" />`
+            );
+          }
+        });
+      }
+
+      // Replace Custom User Emotes
+      if (Array.isArray(CONFIG.customEmotes)) {
+        CONFIG.customEmotes.forEach(ce => {
+          if (ce && ce.code && ce.url) {
+            const safeCode = escapeHtml(ce.code).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const rgx = new RegExp(`\\b${safeCode}\\b`, 'g');
+            html = html.replace(
+              rgx,
+              `<img src="${ce.url}" alt="${escapeHtml(ce.code)}" style="height:${sizePx}px; width:auto; display:inline-block; vertical-align:middle; margin:0 2px; border-radius:4px;" />`
+            );
+          }
+        });
+      }
+
+      // Replace Built-in Animated & Standard Emotes
+      Object.keys(BUILTIN_EMOTES).forEach(code => {
+        const info = BUILTIN_EMOTES[code];
+        const rgx = new RegExp(`\\b${code}\\b`, 'g');
+        const animClass = CONFIG.showAnimatedEmotes ? info.anim : '';
+        const badgeHtml = `<span class="${animClass}" style="display:inline-flex; align-items:center; justify-content:center; height:${sizePx}px; padding:0 6px; margin:0 2px; border-radius:6px; background:${info.bg}33; border:1px solid ${info.bg}; font-size:${Math.round(sizePx * 0.62)}px; vertical-align:middle; line-height:1;" title="${code}">${info.label}</span>`;
+        html = html.replace(rgx, badgeHtml);
+      });
+
+      return html;
+    }
+
+    /*************************************************************************
+     * 7. CORE MESSAGE RENDERING ENGINE (USED IN STUDIO & EXPORTED OVERLAY)
+     *************************************************************************/
+    function hexToRgba(hex, alpha = 1) {
+      const clean = (hex || '#181b28').replace('#', '');
+      const num = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function showToastFilterFeedback(reason) {
+      const el = document.getElementById('filter-toast');
+      if (!el) return;
+      el.textContent = `🛡️ ${reason}`;
+      el.classList.remove('hidden');
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => el.classList.add('hidden'), 2400);
+    }
+
+    function addChatMessageToOverlay(msgData) {
+      // 1. Check Bot Filter
+      if (!CONFIG.showBotMessages && isBotUser(msgData.username, msgData.isBot)) {
+        showToastFilterFeedback(`Bot message hidden (${msgData.username})`);
+        return;
+      }
+
+      // 2. Check Swear & Link Filters
+      const modResult = applyTextModerationFilters(msgData.text);
+      if (modResult.blocked) {
+        showToastFilterFeedback(modResult.reason);
+        return;
+      }
+
+      const listEl = document.getElementById('chat-messages-list');
+      if (!listEl) return;
+
+      // 3. Play Sound
+      playProceduralSound(null, !!msgData.isAnnouncement);
+
+      // 4. Resolve Active Style Preset
+      const styleObj = CHAT_STYLES_108.find(s => s.id === CONFIG.styleId) || CHAT_STYLES_108[0];
+
+      // 5. Resolve Active Entrance Effect
+      let chosenFxId = CONFIG.animationId;
+      if (chosenFxId === 'random') {
+        const randFx = CHAT_EFFECTS_108[Math.floor(Math.random() * CHAT_EFFECTS_108.length)];
+        chosenFxId = randFx.id;
+      }
+
+      // 6. Resolve Platform & User Colors
+      const platform = (msgData.platform || 'twitch').toLowerCase();
+      const platformColor =
+        platform === 'kick' ? CONFIG.kickColor :
+        platform === 'youtube' ? CONFIG.youtubeColor :
+        CONFIG.twitchColor;
+
+      let activeAccentColor = styleObj.accent;
+      let usernameColor = platformColor;
+      let textColor = CONFIG.customTextColor || '#F8FAFC';
+      let cardBg = styleObj.bg;
+      let cardBorderColor = styleObj.border;
+
+      const opacityAlpha = (CONFIG.bubbleOpacity ?? 88) / 100;
+
+      if (CONFIG.colorMode === 'platform') {
+        activeAccentColor = platformColor;
+        usernameColor = platformColor;
+        if (CONFIG.colorScope === 'full_bubble') {
+          cardBg = `linear-gradient(135deg, ${hexToRgba(platformColor, opacityAlpha * 0.42)}, rgba(12, 14, 24, ${opacityAlpha}))`;
+          cardBorderColor = hexToRgba(platformColor, 0.75);
+        } else if (CONFIG.colorScope === 'accent_and_name') {
+          cardBorderColor = hexToRgba(platformColor, 0.55);
+        } else if (CONFIG.colorScope === 'full_text') {
+          textColor = platformColor;
+          cardBorderColor = hexToRgba(platformColor, 0.55);
+        }
+      } else if (CONFIG.colorMode === 'user_color') {
+        const uCol = msgData.userColor || platformColor;
+        activeAccentColor = uCol;
+        usernameColor = uCol;
+        if (CONFIG.colorScope === 'full_bubble') {
+          cardBg = `linear-gradient(135deg, ${hexToRgba(uCol, opacityAlpha * 0.36)}, rgba(12, 14, 24, ${opacityAlpha}))`;
+          cardBorderColor = hexToRgba(uCol, 0.65);
+        } else if (CONFIG.colorScope === 'accent_and_name') {
+          cardBorderColor = hexToRgba(uCol, 0.5);
+        }
+      } else if (CONFIG.colorMode === 'custom') {
+        usernameColor = CONFIG.customUsernameColor;
+        activeAccentColor = CONFIG.customUsernameColor;
+        cardBg = styleObj.transparentCard ? 'transparent' : hexToRgba(CONFIG.customBubbleBg, opacityAlpha);
+        cardBorderColor = hexToRgba(CONFIG.customUsernameColor, 0.4);
+      }
+
+      // 7. Determine Layout & Alignment
+      const layoutMode = CONFIG.messageLayout === 'style_default' ? styleObj.layout : CONFIG.messageLayout;
+      messageAlternator++;
+      let alignSide = CONFIG.messageAlign;
+      if (alignSide === 'alternating') {
+        alignSide = messageAlternator % 2 === 0 ? 'right' : 'left';
+      }
+
+      // 8. Build Card Element
+      const msgId = msgData.id || ('msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7));
+      const wrapper = document.createElement('div');
+      wrapper.dataset.msgId = msgId;
+      wrapper.dataset.userId = msgData.userId || '';
+      wrapper.dataset.username = (msgData.username || '').toLowerCase();
+      wrapper.style.marginBottom = `${CONFIG.messageGap}px`;
+      wrapper.style.display = 'flex';
+      wrapper.style.justifyContent = alignSide === 'right' ? 'flex-end' : 'flex-start';
+      wrapper.style.transition = CONFIG.smoothStackSlide ? 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease' : 'none';
+
+      const card = document.createElement('div');
+      card.style.position = 'relative';
+      card.style.maxWidth = '96%';
+      card.style.width = styleObj.category === 'Esports' || styleObj.category === 'Terminal' ? '100%' : 'auto';
+      card.style.padding = `${CONFIG.cardPadding}px ${CONFIG.cardPadding + 4}px`;
+      card.style.borderRadius = `${styleObj.radius}px`;
+      card.style.background = cardBg;
+      card.style.border = styleObj.borderW > 0 ? `${styleObj.borderW}px solid ${cardBorderColor}` : 'none';
+      card.style.fontFamily = `'${CONFIG.fontFamily}', sans-serif`;
+      card.style.fontSize = `${CONFIG.fontSize}px`;
+      card.style.lineHeight = CONFIG.lineHeight;
+      card.style.color = textColor;
+      card.style.animation = `${chosenFxId} ${CONFIG.animationDuration}ms cubic-bezier(0.22, 1, 0.36, 1) forwards`;
+
+      if (styleObj.blur > 0 && !styleObj.transparentCard) {
+        card.style.backdropFilter = `blur(${styleObj.blur}px)`;
+        card.style.webkitBackdropFilter = `blur(${styleObj.blur}px)`;
+      }
+
+      // Shadow style by category
+      if (!styleObj.transparentCard) {
+        if (styleObj.shadowType === 'neon') {
+          card.style.boxShadow = `0 0 14px ${hexToRgba(activeAccentColor, 0.45)}, inset 0 0 8px ${hexToRgba(activeAccentColor, 0.15)}`;
+        } else if (styleObj.shadowType === 'comic' || styleObj.shadowType === 'brutal') {
+          card.style.boxShadow = `4px 4px 0px ${activeAccentColor}`;
+        } else if (styleObj.shadowType === 'pixel') {
+          card.style.boxShadow = `3px 3px 0px #000000`;
+        } else if (styleObj.shadowType !== 'none') {
+          card.style.boxShadow = `0 8px 22px rgba(0, 0, 0, 0.38)`;
+        }
+      }
+
+      // Cyberpunk clip-path
+      if (styleObj.clip === 'cyber') {
+        card.style.clipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))';
+      }
+
+      // Accent Bars
+      if (styleObj.accentBar === 'left') {
+        card.style.borderLeft = `4px solid ${activeAccentColor}`;
+      } else if (styleObj.accentBar === 'right') {
+        card.style.borderRight = `4px solid ${activeAccentColor}`;
+      } else if (styleObj.accentBar === 'bottom') {
+        card.style.borderBottom = `3px solid ${activeAccentColor}`;
+      }
+
+      // Text shadow / stroke
+      if (CONFIG.textShadowMode === 'strong_outline') {
+        card.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.85)';
+      } else if (CONFIG.textShadowMode === 'neon_glow') {
+        card.style.textShadow = `0 0 8px ${hexToRgba(activeAccentColor, 0.8)}, 0 1px 2px rgba(0,0,0,0.9)`;
+      } else if (CONFIG.textShadowMode === 'soft') {
+        card.style.textShadow = '0 1px 3px rgba(0,0,0,0.75)';
+      }
+
+      // Local image.png per-message border or background
+      if (CONFIG.bgMode === 'image_png') {
+        const imgUrl = CONFIG.imagePngPreviewDataUrl || CONFIG.imagePngPath || './image.png';
+        if (CONFIG.imagePngMode === 'message_border') {
+          card.style.border = `${CONFIG.imagePngWidth}px solid transparent`;
+          card.style.borderImage = `url('${imgUrl}') ${CONFIG.imagePngSlice} fill / ${CONFIG.imagePngWidth}px stretch`;
+        } else if (CONFIG.imagePngMode === 'message_bg') {
+          card.style.backgroundImage = `url('${imgUrl}')`;
+          card.style.backgroundSize = 'cover';
+          card.style.backgroundPosition = 'center';
+        }
+      }
+
+      // 9. Announcement Pop More Override
+      let announcementBannerHTML = '';
+      if (msgData.isAnnouncement && CONFIG.announcementPop) {
+        card.classList.add('sb-announcement-card');
+        card.style.width = '100%';
+        card.style.transform = 'scale(1.01)';
+        const themes = {
+          gold_royal: { bg: 'linear-gradient(135deg, rgba(120, 53, 15, 0.94), rgba(30, 27, 75, 0.94))', border: '#f59e0b', bannerBg: 'linear-gradient(90deg, #f59e0b, #ec4899)', text: '#fef3c7' },
+          cyber_magenta: { bg: 'linear-gradient(135deg, rgba(80, 7, 36, 0.94), rgba(15, 23, 42, 0.94))', border: '#ec4899', bannerBg: 'linear-gradient(90deg, #ec4899, #06b6d4)', text: '#fce7f3' },
+          emerald_flare: { bg: 'linear-gradient(135deg, rgba(6, 78, 59, 0.94), rgba(15, 23, 42, 0.94))', border: '#10b981', bannerBg: 'linear-gradient(90deg, #10b981, #eab308)', text: '#d1fae5' },
+          crimson_alert: { bg: 'linear-gradient(135deg, rgba(127, 29, 29, 0.94), rgba(17, 24, 39, 0.94))', border: '#ef4444', bannerBg: 'linear-gradient(90deg, #ef4444, #f97316)', text: '#fee2e2' }
+        };
+        const th = themes[CONFIG.announcementTheme] || themes.gold_royal;
+        card.style.background = th.bg;
+        card.style.border = `2px solid ${th.border}`;
+        announcementBannerHTML = `
+          <div style="background:${th.bannerBg}; color:#090a0f; font-weight:900; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; padding:3px 8px; border-radius:6px; margin-bottom:6px; display:inline-flex; align-items:center; gap:5px;">
+            <span>${escapeHtml(CONFIG.announcementTitle || '📢 STREAM ANNOUNCEMENT')}</span>
+          </div>
+        `;
+      }
+
+      // 10. Build Avatar, Badges, Username & Message Content
+      const avatarSize = CONFIG.avatarSize || 32;
+      const avatarRadius = CONFIG.avatarShape === 'circle' ? '9999px' : CONFIG.avatarShape === 'rounded' ? '8px' : '0px';
+      const avatarHexClass = CONFIG.avatarShape === 'hexagon' ? 'avatar-hexagon' : '';
+      const avatarHTML = CONFIG.showAvatars ? `
+        <img
+          src="${resolveAvatarUrl(msgData)}"
+          onerror="this.onerror=null;this.src='https://placehold.co/64x64/6d28d9/ffffff?text=${encodeURIComponent((msgData.username || 'U').slice(0,2).toUpperCase())}';"
+          class="${avatarHexClass} shrink-0 object-cover"
+          style="width:${avatarSize}px; height:${avatarSize}px; border-radius:${avatarRadius}; border:2px solid ${activeAccentColor};"
+          alt="${escapeHtml(msgData.username)}"
+        />
+      ` : '';
+
+      const platformBadgeHTML = CONFIG.showPlatformBadge ? getPlatformIconSVG(platform) : '';
+      const roleBadgesHTML = (CONFIG.showBadges && Array.isArray(msgData.badges))
+        ? msgData.badges.map(getRoleBadgeHTML).join('')
+        : '';
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timestampHTML = CONFIG.showTimestamp
+        ? `<span style="font-size:0.75em; opacity:0.6; margin-right:4px;">${timeStr}</span>`
+        : '';
+
+      const parsedMessageHTML = renderTextWithEmotes(modResult.text, msgData.emotes);
+
+      if (layoutMode === 'inline') {
+        card.innerHTML = `
+          ${announcementBannerHTML}
+          <div style="display:flex; align-items:center; gap:8px;">
+            ${avatarHTML}
+            <div style="min-width:0; word-break:break-word;">
+              <span style="display:inline-flex; align-items:center; gap:4px; vertical-align:middle; margin-right:4px;">
+                ${timestampHTML}
+                ${platformBadgeHTML}
+                ${roleBadgesHTML}
+                <span style="font-weight:${CONFIG.usernameWeight}; color:${usernameColor};">${escapeHtml(msgData.username)}:</span>
+              </span>
+              <span style="vertical-align:middle;">${parsedMessageHTML}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        card.innerHTML = `
+          ${announcementBannerHTML}
+          <div style="display:flex; align-items:flex-start; gap:10px;">
+            ${avatarHTML}
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:2px;">
+                ${timestampHTML}
+                ${platformBadgeHTML}
+                ${roleBadgesHTML}
+                <span style="font-weight:${CONFIG.usernameWeight}; color:${usernameColor};">${escapeHtml(msgData.username)}</span>
+              </div>
+              <div style="word-break:break-word;">${parsedMessageHTML}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      wrapper.appendChild(card);
+      listEl.appendChild(wrapper);
+
+      // 11. Track Active Message & Set Auto-Disappear Timer if enabled
+      let timerId = null;
+      if (!CONFIG.showAlways) {
+        const mult = CONFIG.hideAfterUnit === 'minutes' ? 60000 : 1000;
+        const ms = Math.max(1000, (CONFIG.hideAfterValue || 30) * mult);
+        timerId = setTimeout(() => {
+          removeMessageElement(msgId);
+        }, ms);
+      }
+
+      activeMessages.push({
+        id: msgId,
+        userId: String(msgData.userId || ''),
+        username: String(msgData.username || '').toLowerCase(),
+        platform,
+        wrapperEl: wrapper,
+        cardEl: card,
+        timerId
+      });
+
+      // 12. Enforce Max Messages Limit
+      while (activeMessages.length > (CONFIG.maxMessages || 15)) {
+        const oldest = activeMessages.shift();
+        if (oldest) {
+          clearTimeout(oldest.timerId);
+          animateAndRemoveNode(oldest.wrapperEl, oldest.cardEl);
+        }
+      }
+    }
+
+    function animateAndRemoveNode(wrapperEl, cardEl) {
+      if (!wrapperEl || !wrapperEl.parentNode) return;
+      if (cardEl) {
+        cardEl.style.animation = `out_${CONFIG.outEffect || 'fade_up'} 320ms ease forwards`;
+      }
+      setTimeout(() => {
+        if (wrapperEl.parentNode) wrapperEl.parentNode.removeChild(wrapperEl);
+      }, 310);
+    }
+
+    function removeMessageElement(msgId) {
+      const idx = activeMessages.findIndex(m => m.id === msgId);
+      if (idx === -1) return;
+      const item = activeMessages[idx];
+      activeMessages.splice(idx, 1);
+      clearTimeout(item.timerId);
+      animateAndRemoveNode(item.wrapperEl, item.cardEl);
+    }
+
+    function removeMessagesByUser(userId, username) {
+      if (!CONFIG.deleteOnBanOrDelete) return;
+      const targetUser = String(username || '').toLowerCase();
+      const targetId = String(userId || '');
+      const toRemove = activeMessages.filter(m =>
+        (targetId && m.userId === targetId) || (targetUser && m.username === targetUser)
+      );
+      toRemove.forEach(m => removeMessageElement(m.id));
+      if (toRemove.length > 0) {
+        showToastFilterFeedback(`Deleted ${toRemove.length} msg(s) from banned/moderated user`);
+      }
+    }
+
+    function clearAllMessages() {
+      activeMessages.forEach(m => clearTimeout(m.timerId));
+      activeMessages = [];
+      const listEl = document.getElementById('chat-messages-list');
+      if (listEl) listEl.innerHTML = '';
+    }
+
+    /*************************************************************************
+     * 8. STREAMER.BOT WEBSOCKET CLIENT (LIVE CONNECTION IN STUDIO & EXPORT)
+     *************************************************************************/
+    let sbSocket = null;
+    let isSbConnected = false;
+
+    function updateWsStatusUI(state) {
+      const dot = document.getElementById('ws-status-dot');
+      const txt = document.getElementById('ws-status-text');
+      const btn = document.getElementById('ws-connect-btn-label');
+      if (state === 'connected') {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
+        txt.textContent = 'Connected';
+        btn.textContent = 'Disconnect';
+      } else if (state === 'connecting') {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+        txt.textContent = 'Connecting...';
+        btn.textContent = 'Cancel';
+      } else {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#f43f5e]';
+        txt.textContent = 'Disconnected';
+        btn.textContent = 'Connect';
+      }
+    }
+
+    function toggleStreamerBotConnection() {
+      if (sbSocket && (sbSocket.readyState === WebSocket.OPEN || sbSocket.readyState === WebSocket.CONNECTING)) {
+        sbSocket.close();
+        sbSocket = null;
+        isSbConnected = false;
+        updateWsStatusUI('disconnected');
+        return;
+      }
+
+      const urlInput = document.getElementById('ws-url-input');
+      CONFIG.wsUrl = (urlInput.value || 'ws://127.0.0.1:8080/').trim();
+      updateWsStatusUI('connecting');
+
+      try {
+        sbSocket = new WebSocket(CONFIG.wsUrl);
+        sbSocket.onopen = () => {
+          isSbConnected = true;
+          updateWsStatusUI('connected');
+          // Subscribe to Twitch, YouTube, and Kick events in Streamer.bot
+          sbSocket.send(JSON.stringify({
+            request: 'Subscribe',
+            id: 'sb-chat-overlay-studio-sub',
+            events: {
+              Twitch: ['ChatMessage', 'Announcement', 'ChatMessageDeleted', 'UserBanned', 'UserTimedOut', 'ChatCleared'],
+              YouTube: ['Message', 'SuperChat', 'MessageDeleted', 'UserBanned'],
+              Kick: ['ChatMessage', 'ChatMessageDeleted', 'UserBanned', 'UserTimedOut'],
+              General: ['Custom']
+            }
+          }));
+        };
+
+        sbSocket.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            handleStreamerBotPayload(payload);
+          } catch (err) {}
+        };
+
+        sbSocket.onerror = () => {
+          updateWsStatusUI('disconnected');
+        };
+
+        sbSocket.onclose = () => {
+          isSbConnected = false;
+          updateWsStatusUI('disconnected');
+        };
+      } catch (e) {
+        updateWsStatusUI('disconnected');
+      }
+    }
+
+    function handleStreamerBotPayload(payload) {
+      if (!payload || !payload.event) return;
+      const source = (payload.event.source || '').toLowerCase();
+      const type = (payload.event.type || '').toLowerCase();
+      const d = payload.data || {};
+
+      // Moderation / Deletion Events
+      if (type.includes('deleted')) {
+        const targetMsgId = d.messageId || d.msgId || (d.message && d.message.msgId);
+        if (targetMsgId && CONFIG.deleteOnBanOrDelete) {
+          removeMessageElement(targetMsgId);
+        }
+        return;
+      }
+      if (type.includes('banned') || type.includes('timedout')) {
+        const uid = d.userId || (d.user && d.user.id) || '';
+        const uname = d.userName || d.username || (d.user && d.user.name) || (d.user && d.user.login) || '';
+        removeMessagesByUser(uid, uname);
+        return;
+      }
+      if (type.includes('cleared')) {
+        clearAllMessages();
+        return;
+      }
+
+      // Twitch ChatMessage / Announcement
+      if (source === 'twitch' && (type === 'chatmessage' || type === 'announcement')) {
+        const m = d.message || d;
+        addChatMessageToOverlay({
+          id: m.msgId || d.messageId || ('tw_' + Date.now()),
+          userId: m.userId || (d.user && d.user.id) || '',
+          username: m.displayName || m.username || (d.user && d.user.name) || 'TwitchUser',
+          platform: 'twitch',
+          text: m.message || d.text || '',
+          userColor: m.color || (d.user && d.user.color) || '#9146FF',
+          avatar: d.profileImageUrl || m.profileImageUrl || (d.user && d.user.profileImageUrl) || '',
+          badges: m.badges || d.badges || [],
+          emotes: m.emotes || d.emotes || [],
+          isAnnouncement: type === 'announcement',
+          isBot: Boolean(m.isBot)
+        });
+        return;
+      }
+
+      // YouTube Message / SuperChat
+      if (source === 'youtube' && (type === 'message' || type === 'superchat')) {
+        const u = d.user || {};
+        addChatMessageToOverlay({
+          id: d.eventId || ('yt_' + Date.now()),
+          userId: u.id || '',
+          username: u.name || d.authorName || 'YouTubeUser',
+          platform: 'youtube',
+          text: d.message || '',
+          userColor: '#FF0000',
+          avatar: u.profileImageUrl || d.profileImageUrl || '',
+          badges: [
+            ...(u.isOwner ? ['broadcaster'] : []),
+            ...(u.isModerator ? ['moderator'] : []),
+            ...(u.isSponsor ? ['subscriber'] : []),
+            ...(u.isVerified ? ['verified'] : [])
+          ],
+          emotes: d.emotes || [],
+          isAnnouncement: type === 'superchat'
+        });
+        return;
+      }
+
+      // Kick ChatMessage
+      if (source === 'kick' && type === 'chatmessage') {
+        const m = d.message || d;
+        const u = d.user || m.sender || {};
+        addChatMessageToOverlay({
+          id: m.id || d.messageId || ('kk_' + Date.now()),
+          userId: u.id || m.userId || '',
+          username: u.username || u.name || m.displayName || 'KickUser',
+          platform: 'kick',
+          text: m.content || m.message || d.text || '',
+          userColor: (u.identity && u.identity.color) || m.color || '#53FC18',
+          avatar: u.profilePic || u.profile_pic || u.avatar || d.profileImageUrl || '',
+          badges: m.badges || (u.identity && u.identity.badges) || [],
+          emotes: m.emotes || d.emotes || [],
+          isAnnouncement: false
+        });
+      }
+    }
+
+    /*************************************************************************
+     * 9. SIMULATOR ENGINE (FOR TESTING ALL FEATURES LIVE IN THE STUDIO)
+     *************************************************************************/
+    const SIM_USERS = {
+      twitch: [
+        { name: 'ValkyriePlays', color: '#a855f7', badges: ['moderator', 'subscriber'], avatar: 'https://placehold.co/64x64/9146ff/ffffff?text=VP' },
+        { name: 'CyberNinjaTV', color: '#38bdf8', badges: ['vip'], avatar: 'https://placehold.co/64x64/0284c7/ffffff?text=CN' },
+        { name: 'PixelQueen', color: '#f472b6', badges: ['subscriber', 'founder'], avatar: 'https://placehold.co/64x64/db2777/ffffff?text=PQ' }
+      ],
+      kick: [
+        { name: 'KickLegend99', color: '#53FC18', badges: ['moderator', 'vip'], avatar: 'https://placehold.co/64x64/53fc18/050505?text=KL' },
+        { name: 'NeonDrifter', color: '#2dd4bf', badges: ['subscriber'], avatar: 'https://placehold.co/64x64/0d9488/ffffff?text=ND' }
+      ],
+      youtube: [
+        { name: 'ApexCreator', color: '#FF0000', badges: ['verified', 'subscriber'], avatar: 'https://placehold.co/64x64/dc2626/ffffff?text=AC' },
+        { name: 'NovaStreamz', color: '#fb923c', badges: ['moderator'], avatar: 'https://placehold.co/64x64/ea580c/ffffff?text=NS' }
+      ]
+    };
+
+    const SIM_TEXTS = [
+      'That clutch play was insane!! PogChamp FIRE',
+      'Look at this new OBS chat overlay, it looks so clean! HYPERS',
+      'Can we get some catJAM in the chat right now?! catJAM pepeD',
+      'Welcome everyone tuning in from Twitch, Kick, and YouTube! Heart',
+      'LULW that timing could not have been more perfect KEKW',
+      'GGs in the chat! EZ Clap',
+      'Loving the sound effects and smooth sliding animations! PogChamp'
+    ];
+
+    function simulateChatMessage(kind) {
+      if (kind === 'bot') {
+        addChatMessageToOverlay({
+          id: 'sim_bot_' + Date.now(),
+          userId: 'bot_1',
+          username: 'Nightbot',
+          platform: 'twitch',
+          text: 'Follow the stream and join our Discord server! GG',
+          userColor: '#9146FF',
+          badges: ['moderator'],
+          isBot: true
+        });
+        return;
+      }
+
+      if (kind === 'swear_link') {
+        addChatMessageToOverlay({
+          id: 'sim_mod_' + Date.now(),
+          userId: 'troll_99',
+          username: 'RowdyChatter',
+          platform: 'kick',
+          text: 'What the fuck check out https://spam-link.xyz right now shit!',
+          userColor: '#f43f5e',
+          badges: [],
+          avatar: 'https://placehold.co/64x64/e11d48/ffffff?text=RC'
+        });
+        return;
+      }
+
+      if (kind === 'emotes') {
+        const u = SIM_USERS.twitch[Math.floor(Math.random() * SIM_USERS.twitch.length)];
+        addChatMessageToOverlay({
+          id: 'sim_em_' + Date.now(),
+          userId: 'u_' + u.name,
+          username: u.name,
+          platform: 'twitch',
+          text: 'EMOTE PARTY!! catJAM pepeD PogChamp KEKW HYPERS FIRE OMEGALUL EZ Clap Heart',
+          userColor: u.color,
+          badges: u.badges,
+          avatar: u.avatar
+        });
+        return;
+      }
+
+      if (kind === 'announcement') {
+        addChatMessageToOverlay({
+          id: 'sim_ann_' + Date.now(),
+          userId: 'broadcaster_1',
+          username: 'StreamerHost',
+          platform: 'twitch',
+          text: '🚀 HUGE ANNOUNCEMENT! Subathon starts in 10 minutes — Twitch, Kick & YouTube chats are all live on screen! PogChamp FIRE',
+          userColor: '#fbbf24',
+          badges: ['broadcaster', 'verified'],
+          avatar: 'https://placehold.co/64x64/f59e0b/090a0f?text=SH',
+          isAnnouncement: true
+        });
+        return;
+      }
+
+      const plat = ['twitch', 'kick', 'youtube'].includes(kind) ? kind : ['twitch', 'kick', 'youtube'][Math.floor(Math.random() * 3)];
+      const pool = SIM_USERS[plat];
+      const u = pool[Math.floor(Math.random() * pool.length)];
+      const txt = SIM_TEXTS[Math.floor(Math.random() * SIM_TEXTS.length)];
+
+      addChatMessageToOverlay({
+        id: 'sim_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        userId: 'uid_' + u.name,
+        username: u.name,
+        platform: plat,
+        text: txt,
+        userColor: u.color,
+        badges: u.badges,
+        avatar: u.avatar
+      });
+    }
+
+    function simulateBanOrDelete() {
+      if (activeMessages.length === 0) return;
+      const last = activeMessages[activeMessages.length - 1];
+      removeMessagesByUser(last.userId, last.username);
+    }
+
+    let autoSimInterval = null;
+    function toggleAutoSimulator(enabled) {
+      clearInterval(autoSimInterval);
+      if (enabled) {
+        autoSimInterval = setInterval(() => {
+          const r = Math.random();
+          if (r < 0.12) simulateChatMessage('emotes');
+          else if (r < 0.2) simulateChatMessage('announcement');
+          else simulateChatMessage();
+        }, 3200);
+      }
+    }
+
+    /*************************************************************************
+     * 10. UI INSPECTOR RENDERING & BINDINGS
+     *************************************************************************/
+    function switchTab(tabId) {
+      document.querySelectorAll('.inspector-tab').forEach(el => el.classList.add('hidden'));
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.remove('hidden');
+
+      document.querySelectorAll('#studio-tabs-nav .tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.className = 'tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left bg-purple-600/20 text-purple-300 border border-purple-500/40';
+        } else {
+          btn.className = 'tab-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition text-left text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent';
+        }
+      });
+    }
+
+    function loadGoogleFontInStudio(fontFamily, source) {
+      if (source !== 'Google Fonts') return;
+      const linkEl = document.getElementById('dynamic-google-font');
+      if (linkEl) {
+        const formatted = fontFamily.replace(/\s+/g, '+');
+        linkEl.href = `https://fonts.googleapis.com/css2?family=${formatted}:wght@400;600;700;800;900&display=swap`;
+      }
+    }
+
+    function applyContainerBackgroundStyles() {
+      const root = document.getElementById('obs-overlay-root');
+      if (!root) return;
+
+      root.style.background = 'transparent';
+      root.style.border = 'none';
+      root.style.borderImage = 'none';
+      root.style.webkitMaskImage = CONFIG.topFadeMask
+        ? 'linear-gradient(to bottom, transparent 0%, black 14%, black 100%)'
+        : 'none';
+      root.style.maskImage = CONFIG.topFadeMask
+        ? 'linear-gradient(to bottom, transparent 0%, black 14%, black 100%)'
+        : 'none';
+
+      const alpha = (CONFIG.bgOpacity ?? 75) / 100;
+
+      if (CONFIG.bgMode === 'solid') {
+        root.style.background = hexToRgba(CONFIG.bgColor1, alpha);
+      } else if (CONFIG.bgMode === 'fade') {
+        root.style.background = `linear-gradient(${CONFIG.bgGradientAngle}deg, ${hexToRgba(CONFIG.bgColor1, alpha)}, ${hexToRgba(CONFIG.bgColor2, alpha)})`;
+      } else if (CONFIG.bgMode === 'image_png') {
+        const imgUrl = CONFIG.imagePngPreviewDataUrl || CONFIG.imagePngPath || './image.png';
+        if (CONFIG.imagePngMode === 'container_border') {
+          root.style.border = `${CONFIG.imagePngWidth}px solid transparent`;
+          root.style.borderImage = `url('${imgUrl}') ${CONFIG.imagePngSlice} fill / ${CONFIG.imagePngWidth}px stretch`;
+        } else if (CONFIG.imagePngMode === 'container_bg') {
+          root.style.backgroundImage = `url('${imgUrl}')`;
+          root.style.backgroundSize = 'cover';
+          root.style.backgroundPosition = 'center';
+        }
+      }
+
+      // Highlight active background mode button
+      ['transparent', 'image_png', 'solid', 'fade'].forEach(m => {
+        const btn = document.getElementById('bg-mode-' + m);
+        if (btn) {
+          if (CONFIG.bgMode === m) {
+            btn.className = 'p-3 rounded-xl border text-left transition bg-cyan-500/15 border-cyan-400 shadow-sm';
+          } else {
+            btn.className = 'p-3 rounded-xl border text-left transition bg-[#0b0d14] border-white/10 hover:bg-white/5';
+          }
+        }
+      });
+    }
+
+    function updateSummaryFooter() {
+      const styleObj = CHAT_STYLES_108.find(s => s.id === CONFIG.styleId);
+      const fxObj = CHAT_EFFECTS_108.find(f => f.id === CONFIG.animationId);
+      const sndObj = CHAT_SOUNDS_108.find(s => s.id === CONFIG.soundId);
+
+      document.getElementById('summary-style').textContent = styleObj ? `#${styleObj.index} ${styleObj.name}` : CONFIG.styleId;
+      document.getElementById('summary-effect').textContent =
+        CONFIG.animationId === 'random' ? '🎲 Random (108)' : (fxObj ? `#${fxObj.index} ${fxObj.name}` : CONFIG.animationId);
+      document.getElementById('summary-sound').textContent =
+        CONFIG.soundId === 'random' ? '🎲 Random (108)' :
+        CONFIG.soundId === 'none' ? '🔇 Muted' :
+        CONFIG.soundId === 'custom_file' ? '📁 Local MP3' :
+        (sndObj ? sndObj.name : CONFIG.soundId);
+      document.getElementById('summary-font').textContent = CONFIG.fontFamily;
+    }
+
+    function updateSetting(key, value) {
+      CONFIG[key] = value;
+
+      // Update labels
+      if (key === 'messageGap') document.getElementById('lbl-msg-gap').textContent = value + 'px';
+      if (key === 'cardPadding') document.getElementById('lbl-msg-padding').textContent = value + 'px';
+      if (key === 'animationDuration') document.getElementById('lbl-anim-duration').textContent = value + 'ms';
+      if (key === 'fontSize') document.getElementById('lbl-font-size').textContent = value + 'px';
+      if (key === 'lineHeight') document.getElementById('lbl-line-height').textContent = value;
+      if (key === 'soundVolume') document.getElementById('lbl-sound-vol').textContent = value + '%';
+      if (key === 'twitchColor') document.getElementById('lbl-twitch-color').textContent = value.toUpperCase();
+      if (key === 'youtubeColor') document.getElementById('lbl-youtube-color').textContent = value.toUpperCase();
+      if (key === 'kickColor') document.getElementById('lbl-kick-color').textContent = value.toUpperCase();
+      if (key === 'bubbleOpacity') document.getElementById('lbl-bubble-opacity').textContent = value + '%';
+      if (key === 'imagePngSlice') document.getElementById('lbl-img-slice').textContent = value;
+      if (key === 'imagePngWidth') document.getElementById('lbl-img-width').textContent = value + 'px';
+      if (key === 'bgOpacity') document.getElementById('lbl-bg-opacity').textContent = value + '%';
+      if (key === 'bgGradientAngle') document.getElementById('lbl-bg-angle').textContent = value + '°';
+      if (key === 'avatarSize') document.getElementById('lbl-avatar-size').textContent = value + 'px';
+      if (key === 'emoteSize') document.getElementById('lbl-emote-size').textContent = value + 'px';
+      if (key === 'maxMessages') document.getElementById('lbl-max-messages').textContent = value + ' Messages';
+
+      if (key === 'showAlways') {
+        const row = document.getElementById('timer-controls-row');
+        if (row) row.style.opacity = value ? '0.4' : '1';
+      }
+
+      if (key === 'styleId') renderStylesGrid();
+      if (key === 'animationId') renderEffectsGrid();
+      if (key === 'soundId') renderSoundsGrid();
+
+      applyContainerBackgroundStyles();
+      updateSummaryFooter();
+
+      // Trigger a fresh preview message so user immediately sees their change
+      if (['styleId', 'animationId', 'colorMode', 'colorScope', 'fontFamily', 'messageLayout', 'messageAlign'].includes(key)) {
+        simulateChatMessage();
+      }
+    }
+
+    // --- Render 108 Styles Grid ---
+    function renderStyleCategoryPills() {
+      const container = document.getElementById('style-category-pills');
+      const cats = ['All', ...STYLE_CATEGORIES.map(c => c.id)];
+      container.innerHTML = cats.map(c => `
+        <button
+          onclick="activeStyleCategory='${c}'; renderStyleCategoryPills(); renderStylesGrid();"
+          class="px-2 py-1 rounded-md text-[11px] font-semibold transition ${activeStyleCategory === c ? 'bg-purple-600 text-white' : 'bg-[#0b0d14] text-slate-400 hover:text-white border border-white/10'}"
+        >${c}</button>
+      `).join('');
+    }
+
+    function renderStylesGrid() {
+      const q = (document.getElementById('style-search-input')?.value || '').toLowerCase();
+      const filtered = CHAT_STYLES_108.filter(s => {
+        const matchCat = activeStyleCategory === 'All' || s.category === activeStyleCategory;
+        const matchQ = !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || String(s.index) === q;
+        return matchCat && matchQ;
+      });
+
+      const grid = document.getElementById('styles-grid-container');
+      grid.innerHTML = filtered.map(s => {
+        const active = CONFIG.styleId === s.id;
+        return `
+          <button
+            onclick="updateSetting('styleId', '${s.id}')"
+            class="p-2.5 rounded-xl border text-left transition flex flex-col justify-between gap-2 ${active ? 'bg-purple-600/20 border-purple-400 shadow-md shadow-purple-500/10' : 'bg-[#0b0d14] border-white/10 hover:border-white/25'}"
+          >
+            <div class="flex items-center justify-between w-full">
+              <span class="text-[10px] font-bold mono px-1.5 py-0.5 rounded bg-white/5 text-slate-400">#${s.index}</span>
+              <span class="text-[10px] text-purple-300 font-medium">${s.category}</span>
+            </div>
+            <div class="text-xs font-bold text-white truncate w-full">${s.name}</div>
+            <div class="w-full p-1.5 text-[10px] truncate" style="background:${s.bg}; border:${s.borderW}px solid ${s.border}; border-radius:${Math.min(12, s.radius)}px; border-left:${s.accentBar === 'left' ? '3px solid ' + s.accent : ''};">
+              <span style="color:${s.accent}; font-weight:700;">User:</span> <span class="text-slate-200">Hello chat!</span>
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function stepStyle(dir) {
+      const idx = CHAT_STYLES_108.findIndex(s => s.id === CONFIG.styleId);
+      const next = (idx + dir + CHAT_STYLES_108.length) % CHAT_STYLES_108.length;
+      updateSetting('styleId', CHAT_STYLES_108[next].id);
+    }
+
+    function pickRandomStyle() {
+      const rand = CHAT_STYLES_108[Math.floor(Math.random() * CHAT_STYLES_108.length)];
+      updateSetting('styleId', rand.id);
+    }
+
+    // --- Render 108 Effects Grid ---
+    function renderEffectCategoryPills() {
+      const container = document.getElementById('effect-category-pills');
+      const cats = ['All', ...EFFECT_CATEGORIES];
+      container.innerHTML = cats.map(c => `
+        <button
+          onclick="activeEffectCategory='${c}'; renderEffectCategoryPills(); renderEffectsGrid();"
+          class="px-2 py-1 rounded-md text-[11px] font-semibold transition ${activeEffectCategory === c ? 'bg-pink-600 text-white' : 'bg-[#0b0d14] text-slate-400 hover:text-white border border-white/10'}"
+        >${c}</button>
+      `).join('');
+    }
+
+    function renderEffectsGrid() {
+      const q = (document.getElementById('effect-search-input')?.value || '').toLowerCase();
+      const filtered = CHAT_EFFECTS_108.filter(fx => {
+        const matchCat = activeEffectCategory === 'All' || fx.category === activeEffectCategory;
+        const matchQ = !q || fx.name.toLowerCase().includes(q) || fx.category.toLowerCase().includes(q) || String(fx.index) === q;
+        return matchCat && matchQ;
+      });
+
+      const randBtn = document.getElementById('btn-random-effect');
+      if (randBtn) {
+        randBtn.textContent = CONFIG.animationId === 'random' ? '✓ Random Active' : 'Enable Random';
+      }
+
+      const grid = document.getElementById('effects-grid-container');
+      grid.innerHTML = filtered.map(fx => {
+        const active = CONFIG.animationId === fx.id;
+        return `
+          <button
+            onclick="updateSetting('animationId', '${fx.id}')"
+            class="p-2.5 rounded-xl border text-left transition ${active ? 'bg-pink-600/20 border-pink-400 shadow-md' : 'bg-[#0b0d14] border-white/10 hover:border-white/25'}"
+          >
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] mono text-slate-400">#${fx.index}</span>
+              <span class="text-[10px] text-pink-300">${fx.category}</span>
+            </div>
+            <div class="text-xs font-bold text-white truncate mt-1">${fx.name}</div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    // --- Render 112 Fonts Grid ---
+    function renderFontCategoryPills() {
+      const container = document.getElementById('font-category-pills');
+      const cats = ['All', 'Google Fonts', 'Windows System'];
+      container.innerHTML = cats.map(c => `
+        <button
+          onclick="activeFontCategory='${c}'; renderFontCategoryPills(); renderFontsGrid();"
+          class="px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${activeFontCategory === c ? 'bg-sky-600 text-white' : 'bg-[#0b0d14] text-slate-400 hover:text-white border border-white/10'}"
+        >${c}</button>
+      `).join('');
+    }
+
+    function selectFont(fontName, source) {
+      CONFIG.fontSource = source;
+      loadGoogleFontInStudio(fontName, source);
+      updateSetting('fontFamily', fontName);
+      renderFontsGrid();
+    }
+
+    function renderFontsGrid() {
+      const q = (document.getElementById('font-search-input')?.value || '').toLowerCase();
+      const filtered = CHAT_FONTS_112.filter(f => {
+        const matchCat = activeFontCategory === 'All' || f.source === activeFontCategory;
+        const matchQ = !q || f.name.toLowerCase().includes(q) || f.source.toLowerCase().includes(q);
+        return matchCat && matchQ;
+      });
+
+      const grid = document.getElementById('fonts-grid-container');
+      grid.innerHTML = filtered.map(f => {
+        const active = CONFIG.fontFamily === f.name;
+        return `
+          <button
+            onclick="selectFont('${f.name.replace(/'/g, "\\'")}', '${f.source}')"
+            class="px-3 py-2 rounded-lg border text-left transition flex items-center justify-between ${active ? 'bg-sky-600/20 border-sky-400 text-white' : 'bg-[#0b0d14] border-white/10 text-slate-200 hover:border-white/25'}"
+          >
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="text-[10px] mono text-slate-400 w-7">#${f.index}</span>
+              <span class="text-xs font-bold truncate" style="font-family:'${f.name}', sans-serif;">${f.name}</span>
+            </div>
+            <span class="text-[10px] px-2 py-0.5 rounded ${f.source === 'Google Fonts' ? 'bg-sky-500/15 text-sky-300' : 'bg-indigo-500/15 text-indigo-300'} shrink-0">
+              ${f.source}
+            </span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    // --- Render 108 Sounds Grid ---
+    function renderSoundCategoryPills() {
+      const container = document.getElementById('sound-category-pills');
+      const cats = ['All', ...SOUND_CATEGORIES];
+      container.innerHTML = cats.map(c => `
+        <button
+          onclick="activeSoundCategory='${c}'; renderSoundCategoryPills(); renderSoundsGrid();"
+          class="px-2 py-1 rounded-md text-[11px] font-semibold transition ${activeSoundCategory === c ? 'bg-emerald-600 text-white' : 'bg-[#0b0d14] text-slate-400 hover:text-white border border-white/10'}"
+        >${c}</button>
+      `).join('');
+    }
+
+    function selectAndPreviewSound(sndId) {
+      updateSetting('soundId', sndId);
+      playProceduralSound(sndId, false);
+    }
+
+    function renderSoundsGrid() {
+      const q = (document.getElementById('sound-search-input')?.value || '').toLowerCase();
+      const filtered = CHAT_SOUNDS_108.filter(s => {
+        const matchCat = activeSoundCategory === 'All' || s.category === activeSoundCategory;
+        const matchQ = !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || String(s.index) === q;
+        return matchCat && matchQ;
+      });
+
+      const grid = document.getElementById('sounds-grid-container');
+      grid.innerHTML = filtered.map(s => {
+        const active = CONFIG.soundId === s.id;
+        return `
+          <button
+            onclick="selectAndPreviewSound('${s.id}')"
+            class="p-2.5 rounded-xl border text-left transition flex items-center justify-between gap-2 ${active ? 'bg-emerald-600/20 border-emerald-400 shadow-md' : 'bg-[#0b0d14] border-white/10 hover:border-white/25'}"
+          >
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-white truncate">${s.name}</div>
+              <div class="text-[10px] text-emerald-300 truncate">${s.category}</div>
+            </div>
+            <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 text-[10px]">▶</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    // --- Custom Emotes Manager ---
+    function renderCustomEmotesList() {
+      const container = document.getElementById('custom-emotes-list');
+      if (!container) return;
+      container.innerHTML = (CONFIG.customEmotes || []).map((ce, idx) => `
+        <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#161926] border border-white/10 text-[11px]">
+          <img src="${ce.url}" class="w-4 h-4 object-contain rounded-sm" alt="${escapeHtml(ce.code)}" />
+          <span class="mono text-purple-300">${escapeHtml(ce.code)}</span>
+          <button onclick="removeCustomEmote(${idx})" class="text-slate-400 hover:text-rose-400">×</button>
+        </span>
+      `).join('');
+    }
+
+    function addCustomEmote() {
+      const codeInput = document.getElementById('custom-emote-code');
+      const urlInput = document.getElementById('custom-emote-url');
+      const code = (codeInput.value || '').trim();
+      const url = (urlInput.value || '').trim();
+      if (!code || !url) return;
+      CONFIG.customEmotes.push({ code, url });
+      codeInput.value = '';
+      urlInput.value = '';
+      renderCustomEmotesList();
+    }
+
+    function removeCustomEmote(idx) {
+      CONFIG.customEmotes.splice(idx, 1);
+      renderCustomEmotesList();
+    }
+
+    // --- Local image.png File Upload Preview ---
+    function handleLocalImagePreviewUpload(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        CONFIG.imagePngPreviewDataUrl = ev.target.result;
+        CONFIG.bgMode = 'image_png';
+        applyContainerBackgroundStyles();
+        simulateChatMessage();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function changeStageBackdrop(val) {
+      const stage = document.getElementById('preview-stage-wrapper');
+      stage.className = 'flex-1 relative flex items-center justify-center p-4 md:p-8 overflow-hidden ';
+      if (val === 'checkerboard') stage.classList.add('obs-checkerboard');
+      else if (val === 'game') stage.classList.add('obs-game-bg');
+      else if (val === 'green') stage.style.background = '#00b140';
+      else {
+        stage.style.background = '#05060a';
+      }
+      if (val !== 'green' && val !== 'dark') stage.style.background = '';
+    }
+
+    function syncInspectorControlsFromConfig() {
+      document.getElementById('ws-url-input').value = CONFIG.wsUrl;
+      document.getElementById('ctrl-message-layout').value = CONFIG.messageLayout;
+      document.getElementById('ctrl-message-align').value = CONFIG.messageAlign;
+      document.getElementById('ctrl-msg-gap').value = CONFIG.messageGap;
+      document.getElementById('ctrl-msg-padding').value = CONFIG.cardPadding;
+      document.getElementById('ctrl-anim-duration').value = CONFIG.animationDuration;
+      document.getElementById('ctrl-out-effect').value = CONFIG.outEffect;
+      document.getElementById('ctrl-stack-slide').checked = CONFIG.smoothStackSlide;
+      document.getElementById('ctrl-font-size').value = CONFIG.fontSize;
+      document.getElementById('ctrl-line-height').value = CONFIG.lineHeight;
+      document.getElementById('ctrl-user-weight').value = CONFIG.usernameWeight;
+      document.getElementById('ctrl-text-shadow').value = CONFIG.textShadowMode;
+      document.getElementById('ctrl-sound-vol').value = CONFIG.soundVolume;
+      document.getElementById('ctrl-custom-sound-file').value = CONFIG.customSoundFile;
+
+      document.querySelectorAll('input[name="colorModeRadio"]').forEach(r => {
+        r.checked = r.value === CONFIG.colorMode;
+      });
+      document.getElementById('ctrl-color-apply-scope').value = CONFIG.colorScope;
+      document.getElementById('ctrl-twitch-color').value = CONFIG.twitchColor;
+      document.getElementById('ctrl-youtube-color').value = CONFIG.youtubeColor;
+      document.getElementById('ctrl-kick-color').value = CONFIG.kickColor;
+      document.getElementById('ctrl-custom-text-color').value = CONFIG.customTextColor;
+      document.getElementById('ctrl-custom-name-color').value = CONFIG.customUsernameColor;
+      document.getElementById('ctrl-custom-bubble-bg').value = CONFIG.customBubbleBg;
+      document.getElementById('ctrl-bubble-opacity').value = CONFIG.bubbleOpacity;
+
+      document.getElementById('ctrl-image-png-target').value = CONFIG.imagePngMode;
+      document.getElementById('ctrl-image-png-path').value = CONFIG.imagePngPath;
+      document.getElementById('ctrl-img-slice').value = CONFIG.imagePngSlice;
+      document.getElementById('ctrl-img-width').value = CONFIG.imagePngWidth;
+      document.getElementById('ctrl-bg-color-1').value = CONFIG.bgColor1;
+      document.getElementById('ctrl-bg-color-2').value = CONFIG.bgColor2;
+      document.getElementById('ctrl-bg-opacity').value = CONFIG.bgOpacity;
+      document.getElementById('ctrl-bg-angle').value = CONFIG.bgGradientAngle;
+      document.getElementById('ctrl-top-fade-mask').checked = CONFIG.topFadeMask;
+
+      document.getElementById('ctrl-show-avatars').checked = CONFIG.showAvatars;
+      document.getElementById('ctrl-avatar-shape').value = CONFIG.avatarShape;
+      document.getElementById('ctrl-avatar-size').value = CONFIG.avatarSize;
+      document.getElementById('ctrl-show-platform-badge').checked = CONFIG.showPlatformBadge;
+      document.getElementById('ctrl-show-role-badges').checked = CONFIG.showBadges;
+      document.getElementById('ctrl-show-timestamp').checked = CONFIG.showTimestamp;
+      document.getElementById('ctrl-show-emotes').checked = CONFIG.showEmotes;
+      document.getElementById('ctrl-show-anim-emotes').checked = CONFIG.showAnimatedEmotes;
+      document.getElementById('ctrl-emote-size').value = CONFIG.emoteSize;
+
+      document.getElementById('ctrl-max-messages').value = CONFIG.maxMessages;
+      document.getElementById('ctrl-show-always').checked = CONFIG.showAlways;
+      document.getElementById('ctrl-hide-duration').value = CONFIG.hideAfterValue;
+      document.getElementById('ctrl-hide-unit').value = CONFIG.hideAfterUnit;
+      document.getElementById('ctrl-delete-on-ban').checked = CONFIG.deleteOnBanOrDelete;
+      document.getElementById('ctrl-show-bots').checked = CONFIG.showBotMessages;
+      document.getElementById('ctrl-bot-list').value = CONFIG.botNamesList;
+      document.getElementById('ctrl-filter-swears').checked = CONFIG.filterSwears;
+      document.getElementById('ctrl-swear-action').value = CONFIG.swearAction;
+      document.getElementById('ctrl-swear-list').value = CONFIG.swearWordsList;
+      document.getElementById('ctrl-filter-links').checked = CONFIG.filterLinks;
+      document.getElementById('ctrl-link-action').value = CONFIG.linkAction;
+
+      document.getElementById('ctrl-announce-pop').checked = CONFIG.announcementPop;
+      document.getElementById('ctrl-announce-theme').value = CONFIG.announcementTheme;
+      document.getElementById('ctrl-announce-title').value = CONFIG.announcementTitle;
+      document.getElementById('ctrl-announce-sound').checked = CONFIG.announcementSound;
+
+      applyContainerBackgroundStyles();
+      updateSummaryFooter();
+      renderCustomEmotesList();
+    }
+
+    function resetToDefaults() {
+      CONFIG = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+      syncInspectorControlsFromConfig();
+      renderStylesGrid();
+      renderEffectsGrid();
+      renderFontsGrid();
+      renderSoundsGrid();
+      clearAllMessages();
+      simulateChatMessage('twitch');
+    }
+
+    /*************************************************************************
+     * 11. STANDALONE OBS OVERLAY HTML GENERATOR & EXPORTER
+     *************************************************************************/
+    function buildStandaloneObsOverlayHtml() {
+      // Export config with ./image.png preserved for local folder usage
+      const exportConfig = JSON.parse(JSON.stringify(CONFIG));
+      exportConfig.wsUrl = (document.getElementById('ws-url-input')?.value || CONFIG.wsUrl).trim();
+      exportConfig.imagePngPreviewDataUrl = ''; // Ensure local ./image.png path is used in OBS
+
+      const activeStyle = CHAT_STYLES_108.find(s => s.id === exportConfig.styleId) || CHAT_STYLES_108[0];
+      const googleFontLink = exportConfig.fontSource === 'Google Fonts'
+        ? `<link href="https://fonts.googleapis.com/css2?family=${exportConfig.fontFamily.replace(/\s+/g, '+')}:wght@400;600;700;800;900&display=swap" rel="stylesheet">`
+        : '';
+
+      const animCSS = generateAnimationEngineCSS();
+
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Streamer.bot Multi-Platform OBS Chat Overlay</title>
+  ${googleFontLink}
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: '${exportConfig.fontFamily}', sans-serif;
+    }
+    #obs-overlay-root {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+      position: relative;
+    }
+    #chat-messages-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+      padding: 14px;
+    }
+    .avatar-hexagon {
+      clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+    }
+    @keyframes emoteBounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-4px) scale(1.08); } }
+    @keyframes emoteJam { 0%, 100% { transform: rotate(-10deg) scale(1.05); } 50% { transform: rotate(12deg) scale(1.1) translateY(-2px); } }
+    @keyframes emoteSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes emotePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+    @keyframes emoteShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px) rotate(-5deg); } 75% { transform: translateX(2px) rotate(5deg); } }
+    .anim-emote-jam { display: inline-block; animation: emoteJam 0.48s infinite ease-in-out; }
+    .anim-emote-bounce { display: inline-block; animation: emoteBounce 0.6s infinite ease-in-out; }
+    .anim-emote-spin { display: inline-block; animation: emoteSpin 1.4s infinite linear; }
+    .anim-emote-pulse { display: inline-block; animation: emotePulse 0.7s infinite ease-in-out; }
+    .anim-emote-shake { display: inline-block; animation: emoteShake 0.35s infinite ease-in-out; }
+    @keyframes announcePulseGlow {
+      0%, 100% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.45), inset 0 0 12px rgba(245, 158, 11, 0.2); }
+      50% { box-shadow: 0 0 30px rgba(236, 72, 153, 0.75), inset 0 0 20px rgba(245, 158, 11, 0.35); }
+    }
+    @keyframes sweepLight { 0% { left: -120%; } 45%, 100% { left: 160%; } }
+    .sb-announcement-card {
+      animation: announcePulseGlow 2.2s infinite ease-in-out !important;
+      position: relative;
+      overflow: hidden;
+    }
+    .sb-announcement-card::after {
+      content: "";
+      position: absolute;
+      top: 0; left: -120%;
+      width: 65%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transform: skewX(-25deg);
+      animation: sweepLight 3.2s infinite;
+      pointer-events: none;
+    }
+    ${animCSS}
+  </style>
+</head>
+<body>
+  <div id="obs-overlay-root">
+    <div id="chat-messages-list"></div>
+  </div>
+
+  <script>
+    const CONFIG = ${JSON.stringify(exportConfig, null, 2)};
+    const ACTIVE_STYLE = ${JSON.stringify(activeStyle)};
+    const CHAT_STYLES_108 = [ACTIVE_STYLE];
+    const CHAT_EFFECTS_108 = ${JSON.stringify(CHAT_EFFECTS_108.map(f => ({ id: f.id })))};
+    const CHAT_SOUNDS_108 = ${JSON.stringify(CHAT_SOUNDS_108)};
+    const BUILTIN_EMOTES = ${JSON.stringify(BUILTIN_EMOTES)};
+
+    let messageAlternator = 0;
+    let activeMessages = [];
+    let audioCtx = null;
+
+    ${getAudioContext.toString()}
+    ${playProceduralSound.toString()}
+    ${playAnnouncementFanfare.toString()}
+    ${getPlatformIconSVG.toString()}
+    ${getRoleBadgeHTML.toString()}
+    ${resolveAvatarUrl.toString()}
+    ${isBotUser.toString()}
+    ${escapeHtml.toString()}
+    ${applyTextModerationFilters.toString()}
+    ${renderTextWithEmotes.toString()}
+    ${hexToRgba.toString()}
+    function showToastFilterFeedback() {}
+    ${addChatMessageToOverlay.toString()}
+    ${animateAndRemoveNode.toString()}
+    ${removeMessageElement.toString()}
+    ${removeMessagesByUser.toString()}
+    ${clearAllMessages.toString()}
+    ${handleStreamerBotPayload.toString()}
+    ${applyContainerBackgroundStyles.toString()}
+
+    function connectStreamerBot() {
+      const ws = new WebSocket(CONFIG.wsUrl || 'ws://127.0.0.1:8080/');
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          request: 'Subscribe',
+          id: 'obs-chat-overlay-sub',
+          events: {
+            Twitch: ['ChatMessage', 'Announcement', 'ChatMessageDeleted', 'UserBanned', 'UserTimedOut', 'ChatCleared'],
+            YouTube: ['Message', 'SuperChat', 'MessageDeleted', 'UserBanned'],
+            Kick: ['ChatMessage', 'ChatMessageDeleted', 'UserBanned', 'UserTimedOut'],
+            General: ['Custom']
+          }
+        }));
+      };
+      ws.onmessage = (event) => {
+        try {
+          handleStreamerBotPayload(JSON.parse(event.data));
+        } catch (e) {}
+      };
+      ws.onclose = () => {
+        setTimeout(connectStreamerBot, 3000);
+      };
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyContainerBackgroundStyles();
+      connectStreamerBot();
+    });
+  <\/script>
+</body>
+</html>`;
+    }
+
+    function openExportModal() {
+      const code = buildStandaloneObsOverlayHtml();
+      document.getElementById('export-code-textarea').value = code;
+      document.getElementById('copy-feedback-msg').textContent = '';
+      const modal = document.getElementById('export-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeExportModal() {
+      const modal = document.getElementById('export-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function copyExportedHtmlCode() {
+      const textarea = document.getElementById('export-code-textarea');
+      if (!textarea.value) {
+        textarea.value = buildStandaloneObsOverlayHtml();
+      }
+      textarea.select();
+      document.execCommand('copy');
+      document.getElementById('copy-feedback-msg').textContent = '✓ Copied complete OBS HTML code to clipboard!';
+    }
+
+    function downloadObsOverlayHtml() {
+      const htmlContent = buildStandaloneObsOverlayHtml();
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'obs-chat-overlay.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    /*************************************************************************
+     * 12. INITIALIZATION ON WINDOW LOAD
+     *************************************************************************/
+    window.addEventListener('DOMContentLoaded', () => {
+      // Inject 108 animations CSS into Studio
+      document.getElementById('chat-animation-engine').textContent = generateAnimationEngineCSS();
+
+      // Render all category pills and grids
+      renderStyleCategoryPills();
+      renderStylesGrid();
+      renderEffectCategoryPills();
+      renderEffectsGrid();
+      renderFontCategoryPills();
+      renderFontsGrid();
+      renderSoundCategoryPills();
+      renderSoundsGrid();
+
+      syncInspectorControlsFromConfig();
+      if (window.lucide) lucide.createIcons();
+
+      // Seed initial sample messages from Twitch, Kick, YouTube & Announcement
+      setTimeout(() => simulateChatMessage('twitch'), 150);
+      setTimeout(() => simulateChatMessage('kick'), 450);
+      setTimeout(() => simulateChatMessage('youtube'), 750);
+      setTimeout(() => simulateChatMessage('announcement'), 1100);
+
+      // Start auto simulator
+      toggleAutoSimulator(true);
+    });
+  </script>
+</body>
+</html>

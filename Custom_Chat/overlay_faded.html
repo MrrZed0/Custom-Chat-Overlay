@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Streamer.bot Multi-Platform OBS Chat Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+    }
+    #obs-overlay-root {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+      position: relative;
+    }
+    #chat-messages-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      overflow: hidden;
+      padding: 14px;
+    }
+    .avatar-hexagon {
+      clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
+    }
+    @keyframes emoteBounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-4px) scale(1.08); } }
+    @keyframes emoteJam { 0%, 100% { transform: rotate(-10deg) scale(1.05); } 50% { transform: rotate(12deg) scale(1.1) translateY(-2px); } }
+    @keyframes emoteSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes emotePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+    @keyframes emoteShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px) rotate(-5deg); } 75% { transform: translateX(2px) rotate(5deg); } }
+    .anim-emote-jam { display: inline-block; animation: emoteJam 0.48s infinite ease-in-out; }
+    .anim-emote-bounce { display: inline-block; animation: emoteBounce 0.6s infinite ease-in-out; }
+    .anim-emote-spin { display: inline-block; animation: emoteSpin 1.4s infinite linear; }
+    .anim-emote-pulse { display: inline-block; animation: emotePulse 0.7s infinite ease-in-out; }
+    .anim-emote-shake { display: inline-block; animation: emoteShake 0.35s infinite ease-in-out; }
+    @keyframes announcePulseGlow {
+      0%, 100% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.45), inset 0 0 12px rgba(245, 158, 11, 0.2); }
+      50% { box-shadow: 0 0 30px rgba(236, 72, 153, 0.75), inset 0 0 20px rgba(245, 158, 11, 0.35); }
+    }
+    @keyframes sweepLight { 0% { left: -120%; } 45%, 100% { left: 160%; } }
+    .sb-announcement-card {
+      animation: announcePulseGlow 2.2s infinite ease-in-out !important;
+      position: relative;
+      overflow: hidden;
+    }
+    .sb-announcement-card::after {
+      content: "";
+      position: absolute;
+      top: 0; left: -120%;
+      width: 65%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transform: skewX(-25deg);
+      animation: sweepLight 3.2s infinite;
+      pointer-events: none;
+    }
+    
+        @keyframes out_fade_up { to { opacity: 0; transform: translateY(-22px) scale(0.95); } }
+        @keyframes out_fade_left { to { opacity: 0; transform: translateX(-60px) scale(0.95); } }
+        @keyframes out_fade_right { to { opacity: 0; transform: translateX(60px) scale(0.95); } }
+        @keyframes out_scale_down { to { opacity: 0; transform: scale(0.2); } }
+        @keyframes out_blur_dissolve { to { opacity: 0; filter: blur(14px); transform: scale(1.08); } }
+        @keyframes out_glitch_out {
+          0% { opacity: 1; transform: skewX(0); }
+          40% { opacity: 0.8; transform: translateX(18px) skewX(25deg); filter: hue-rotate(90deg); }
+          75% { opacity: 0.4; transform: translateX(-25px) skewX(-25deg); }
+          100% { opacity: 0; transform: scaleY(0.05); }
+        }
+        @keyframes out_flip_out { to { opacity: 0; transform: perspective(600px) rotateX(85deg); } }
+      @keyframes fx_1 { 0% { opacity: 0; transform: translateX(-53px); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_2 { 0% { opacity: 0; transform: translateX(61px); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_3 { 0% { opacity: 0; transform: translateY(53px); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_4 { 0% { opacity: 0; transform: translateY(-59px); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_5 { 0% { opacity: 0; transform: translate(-40px, -30px); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_6 { 0% { opacity: 0; transform: translate(-40px, 30px); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_7 { 0% { opacity: 0; transform: translateX(-75px) scale(0.92); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_8 { 0% { opacity: 0; transform: translateX(75px) scale(0.92); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_9 { 0% { opacity: 0; transform: translateY(55px) scale(0.96); } 100% { opacity: 1; transform: translate(0,0) scale(1); } }
+@keyframes fx_10 { 
+              0% { opacity: 0; transform: translateY(30px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -5px) scale(1.048); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_11 { 
+              0% { opacity: 0; transform: translateX(-35px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -6px) scale(1.056); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_12 { 
+              0% { opacity: 0; transform: translateY(40px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -7px) scale(1.064); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_13 { 
+              0% { opacity: 0; transform: translateX(-45px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -8px) scale(1.072); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_14 { 
+              0% { opacity: 0; transform: translateY(50px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -9px) scale(1.08); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_15 { 
+              0% { opacity: 0; transform: translateX(-55px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -10px) scale(1.088); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_16 { 
+              0% { opacity: 0; transform: translateY(60px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -11px) scale(1.096); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_17 { 
+              0% { opacity: 0; transform: translateX(-65px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -12px) scale(1.104); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_18 { 
+              0% { opacity: 0; transform: translateY(70px) scale(0.65); }
+              60% { opacity: 1; transform: translate(0, -13px) scale(1.112); }
+              80% { transform: translate(0, 2px) scale(0.98); }
+              100% { opacity: 1; transform: translate(0, 0) scale(1); }
+             }
+@keyframes fx_19 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.28, 0.70, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_20 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.31, 0.68, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_21 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.34, 0.66, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_22 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.37, 0.64, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_23 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.40, 0.62, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_24 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.43, 0.60, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_25 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.46, 0.58, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_26 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.49, 0.56, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_27 { 
+              0% { opacity: 0; transform: scale3d(0.3, 0.3, 1); }
+              45% { opacity: 1; transform: scale3d(1.52, 0.54, 1); }
+              70% { transform: scale3d(0.92, 1.08, 1); }
+              85% { transform: scale3d(1.03, 0.97, 1); }
+              100% { opacity: 1; transform: scale3d(1, 1, 1); }
+             }
+@keyframes fx_28 { 
+              0% { opacity: 0; transform: perspective(700px) rotateX(71deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_29 { 
+              0% { opacity: 0; transform: perspective(700px) rotateY(77deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_30 { 
+              0% { opacity: 0; transform: perspective(700px) rotateX(83deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_31 { 
+              0% { opacity: 0; transform: perspective(700px) rotateY(89deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_32 { 
+              0% { opacity: 0; transform: perspective(700px) rotateX(95deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_33 { 
+              0% { opacity: 0; transform: perspective(700px) rotateY(101deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_34 { 
+              0% { opacity: 0; transform: perspective(700px) rotateX(107deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_35 { 
+              0% { opacity: 0; transform: perspective(700px) rotateY(113deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_36 { 
+              0% { opacity: 0; transform: perspective(700px) rotateX(119deg) translateZ(-40px); }
+              70% { opacity: 1; transform: perspective(700px) rotateX(-5deg) rotateY(4deg); }
+              100% { opacity: 1; transform: perspective(700px) rotateX(0) rotateY(0) translateZ(0); }
+             }
+@keyframes fx_37 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(15deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-15deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_38 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(18deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-18deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_39 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(21deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-21deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_40 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(24deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-24deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_41 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(27deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-27deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_42 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(30deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-30deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_43 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(33deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-33deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_44 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(36deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-36deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_45 { 
+              0% { opacity: 0; transform: translateX(-25px) skewX(39deg); filter: hue-rotate(120deg) contrast(180%); }
+              35% { opacity: 1; transform: translateX(14px) skewX(-39deg); filter: hue-rotate(-90deg); }
+              65% { transform: translateX(-6px) skewX(6deg); filter: none; }
+              100% { opacity: 1; transform: translateX(0) skewX(0); filter: none; }
+             }
+@keyframes fx_46 { 
+              0% { opacity: 0; transform: scale(0.19); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(1.04); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_47 { 
+              0% { opacity: 0; transform: scale(1.57); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(0.97); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_48 { 
+              0% { opacity: 0; transform: scale(0.27); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(1.04); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_49 { 
+              0% { opacity: 0; transform: scale(1.69); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(0.97); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_50 { 
+              0% { opacity: 0; transform: scale(0.35); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(1.04); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_51 { 
+              0% { opacity: 0; transform: scale(1.81); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(0.97); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_52 { 
+              0% { opacity: 0; transform: scale(0.43); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(1.04); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_53 { 
+              0% { opacity: 0; transform: scale(1.93); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(0.97); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_54 { 
+              0% { opacity: 0; transform: scale(0.51); filter: blur(4px); }
+              75% { opacity: 1; transform: scale(1.04); filter: blur(0px); }
+              100% { opacity: 1; transform: scale(1); filter: blur(0px); }
+             }
+@keyframes fx_55 { 
+              0% { opacity: 0; transform: rotate(40deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(-3.2deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_56 { 
+              0% { opacity: 0; transform: rotate(-55deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(4.4deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_57 { 
+              0% { opacity: 0; transform: rotate(70deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(-5.6000000000000005deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_58 { 
+              0% { opacity: 0; transform: rotate(-85deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(6.8deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_59 { 
+              0% { opacity: 0; transform: rotate(100deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(-8deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_60 { 
+              0% { opacity: 0; transform: rotate(-115deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(9.200000000000001deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_61 { 
+              0% { opacity: 0; transform: rotate(130deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(-10.4deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_62 { 
+              0% { opacity: 0; transform: rotate(-145deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(11.6deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_63 { 
+              0% { opacity: 0; transform: rotate(160deg) scale(0.45) translateY(20px); }
+              80% { opacity: 1; transform: rotate(-12.8deg) scale(1.02); }
+              100% { opacity: 1; transform: rotate(0deg) scale(1) translateY(0); }
+             }
+@keyframes fx_64 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(21deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(-5.25deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_65 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(-24deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(6deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_66 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(27deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(-6.75deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_67 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(-30deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(7.5deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_68 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(33deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(-8.25deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_69 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(-36deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(9deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_70 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(39deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(-9.75deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_71 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(-42deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(10.5deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_72 { 
+              0% { opacity: 0; transform: translateX(-55px) skewX(45deg) scaleX(1.15); }
+              70% { opacity: 1; transform: translateX(6px) skewX(-11.25deg); }
+              100% { opacity: 1; transform: translateX(0) skewX(0deg) scaleX(1); }
+             }
+@keyframes fx_73 { 
+              0% { opacity: 0; filter: blur(10px) brightness(1.6); transform: translateY(10px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_74 { 
+              0% { opacity: 0; filter: blur(12px) brightness(1.6); transform: translateY(12px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_75 { 
+              0% { opacity: 0; filter: blur(14px) brightness(1.6); transform: translateY(14px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_76 { 
+              0% { opacity: 0; filter: blur(16px) brightness(1.6); transform: translateY(16px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_77 { 
+              0% { opacity: 0; filter: blur(18px) brightness(1.6); transform: translateY(18px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_78 { 
+              0% { opacity: 0; filter: blur(20px) brightness(1.6); transform: translateY(20px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_79 { 
+              0% { opacity: 0; filter: blur(22px) brightness(1.6); transform: translateY(22px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_80 { 
+              0% { opacity: 0; filter: blur(24px) brightness(1.6); transform: translateY(24px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_81 { 
+              0% { opacity: 0; filter: blur(26px) brightness(1.6); transform: translateY(26px) scale(0.96); }
+              100% { opacity: 1; filter: blur(0px) brightness(1); transform: translateY(0) scale(1); }
+             }
+@keyframes fx_82 { 
+              0% { opacity: 0; transform: translateY(-48px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_83 { 
+              0% { opacity: 0; transform: translateY(-56px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_84 { 
+              0% { opacity: 0; transform: translateY(-64px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_85 { 
+              0% { opacity: 0; transform: translateY(-72px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_86 { 
+              0% { opacity: 0; transform: translateY(-80px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_87 { 
+              0% { opacity: 0; transform: translateY(-88px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_88 { 
+              0% { opacity: 0; transform: translateY(-96px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_89 { 
+              0% { opacity: 0; transform: translateY(-104px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_90 { 
+              0% { opacity: 0; transform: translateY(-112px) scaleY(1.18); }
+              65% { opacity: 1; transform: translateY(4px) scaleY(0.92) scaleX(1.05); }
+              85% { transform: translateY(-3px) scaleY(1.02); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+             }
+@keyframes fx_91 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_92 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_93 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_94 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_95 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_96 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_97 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_98 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_99 { 
+              0% { opacity: 0; transform: scaleX(0.05) scaleY(0.2); filter: brightness(3) drop-shadow(0 0 16px #a855f7); }
+              55% { opacity: 1; transform: scaleX(1.04) scaleY(0.95); filter: brightness(1.6); }
+              100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+             }
+@keyframes fx_100 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_101 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_102 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_103 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_104 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_105 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_106 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_107 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+@keyframes fx_108 { 
+              0% { opacity: 0; transform: perspective(600px) rotateX(-60deg) scaleY(0.2); transform-origin: top center; }
+              75% { opacity: 1; transform: perspective(600px) rotateX(8deg) scaleY(1.03); }
+              100% { opacity: 1; transform: perspective(600px) rotateX(0deg) scaleY(1); }
+             }
+
+  </style>
+</head>
+<body>
+  <div id="obs-overlay-root">
+    <div id="chat-messages-list"></div>
+  </div>
+
+  <script>
+    const CONFIG = {
+  "wsUrl": "ws://127.0.0.1:8080/",
+  "styleId": "style_100",
+  "messageLayout": "style_default",
+  "messageAlign": "left",
+  "messageGap": 6,
+  "cardPadding": 9,
+  "animationId": "random",
+  "animationDuration": 450,
+  "outEffect": "flip_out",
+  "smoothStackSlide": true,
+  "fontFamily": "Inter",
+  "fontSource": "Google Fonts",
+  "fontSize": 18,
+  "lineHeight": 1,
+  "usernameWeight": "700",
+  "textShadowMode": "soft",
+  "soundId": "random",
+  "soundVolume": 100,
+  "customSoundFile": "./sound.mp3",
+  "colorMode": "user_color",
+  "colorScope": "accent_and_name",
+  "twitchColor": "#9146FF",
+  "youtubeColor": "#FF0000",
+  "kickColor": "#53FC18",
+  "customTextColor": "#F8FAFC",
+  "customUsernameColor": "#C084FC",
+  "customBubbleBg": "#181B28",
+  "bubbleOpacity": 80,
+  "bgMode": "solid",
+  "imagePngMode": "message_border",
+  "imagePngPath": "./image.png",
+  "imagePngPreviewDataUrl": "",
+  "imagePngSlice": 28,
+  "imagePngWidth": 12,
+  "bgColor1": "#000000",
+  "bgColor2": "#2e1065",
+  "bgOpacity": 0,
+  "bgGradientAngle": 360,
+  "topFadeMask": true,
+  "showAvatars": true,
+  "avatarShape": "circle",
+  "avatarSize": 32,
+  "showPlatformBadge": true,
+  "showBadges": true,
+  "showTimestamp": false,
+  "showEmotes": true,
+  "showAnimatedEmotes": true,
+  "emoteSize": 56,
+  "customEmotes": [
+    {
+      "code": "STREAMER",
+      "url": "https://placehold.co/64x64/9146ff/ffffff?text=VIP"
+    }
+  ],
+  "maxMessages": 60,
+  "showAlways": false,
+  "hideAfterValue": 30,
+  "hideAfterUnit": "seconds",
+  "deleteOnBanOrDelete": true,
+  "showBotMessages": false,
+  "botNamesList": "Nightbot, StreamElements, Fossabot, Moobot, Streamlabs, Wizebot, BotRix, KickBot",
+  "filterSwears": true,
+  "swearAction": "block",
+  "swearWordsList": "fuck, shit, bitch, asshole, cunt, dick, bastard, slut, whore, dumbass, stfu",
+  "filterLinks": true,
+  "linkAction": "block",
+  "announcementPop": true,
+  "announcementTheme": "gold_royal",
+  "announcementTitle": "📢 STREAM ANNOUNCEMENT",
+  "announcementSound": true
+};
+    const ACTIVE_STYLE = {"id":"style_100","index":100,"name":"Terminal Classic","category":"Terminal","bg":"rgba(20, 24, 38, 0.88)","border":"rgba(255,255,255,0.14)","accent":"#8b5cf6","radius":4,"borderW":1,"blur":2,"layout":"inline","shadowType":"terminal","clip":"none","accentBar":"left","transparentCard":false};
+    const CHAT_STYLES_108 = [ACTIVE_STYLE];
+    const CHAT_EFFECTS_108 = [{"id":"fx_1"},{"id":"fx_2"},{"id":"fx_3"},{"id":"fx_4"},{"id":"fx_5"},{"id":"fx_6"},{"id":"fx_7"},{"id":"fx_8"},{"id":"fx_9"},{"id":"fx_10"},{"id":"fx_11"},{"id":"fx_12"},{"id":"fx_13"},{"id":"fx_14"},{"id":"fx_15"},{"id":"fx_16"},{"id":"fx_17"},{"id":"fx_18"},{"id":"fx_19"},{"id":"fx_20"},{"id":"fx_21"},{"id":"fx_22"},{"id":"fx_23"},{"id":"fx_24"},{"id":"fx_25"},{"id":"fx_26"},{"id":"fx_27"},{"id":"fx_28"},{"id":"fx_29"},{"id":"fx_30"},{"id":"fx_31"},{"id":"fx_32"},{"id":"fx_33"},{"id":"fx_34"},{"id":"fx_35"},{"id":"fx_36"},{"id":"fx_37"},{"id":"fx_38"},{"id":"fx_39"},{"id":"fx_40"},{"id":"fx_41"},{"id":"fx_42"},{"id":"fx_43"},{"id":"fx_44"},{"id":"fx_45"},{"id":"fx_46"},{"id":"fx_47"},{"id":"fx_48"},{"id":"fx_49"},{"id":"fx_50"},{"id":"fx_51"},{"id":"fx_52"},{"id":"fx_53"},{"id":"fx_54"},{"id":"fx_55"},{"id":"fx_56"},{"id":"fx_57"},{"id":"fx_58"},{"id":"fx_59"},{"id":"fx_60"},{"id":"fx_61"},{"id":"fx_62"},{"id":"fx_63"},{"id":"fx_64"},{"id":"fx_65"},{"id":"fx_66"},{"id":"fx_67"},{"id":"fx_68"},{"id":"fx_69"},{"id":"fx_70"},{"id":"fx_71"},{"id":"fx_72"},{"id":"fx_73"},{"id":"fx_74"},{"id":"fx_75"},{"id":"fx_76"},{"id":"fx_77"},{"id":"fx_78"},{"id":"fx_79"},{"id":"fx_80"},{"id":"fx_81"},{"id":"fx_82"},{"id":"fx_83"},{"id":"fx_84"},{"id":"fx_85"},{"id":"fx_86"},{"id":"fx_87"},{"id":"fx_88"},{"id":"fx_89"},{"id":"fx_90"},{"id":"fx_91"},{"id":"fx_92"},{"id":"fx_93"},{"id":"fx_94"},{"id":"fx_95"},{"id":"fx_96"},{"id":"fx_97"},{"id":"fx_98"},{"id":"fx_99"},{"id":"fx_100"},{"id":"fx_101"},{"id":"fx_102"},{"id":"fx_103"},{"id":"fx_104"},{"id":"fx_105"},{"id":"fx_106"},{"id":"fx_107"},{"id":"fx_108"}];
+    const CHAT_SOUNDS_108 = [{"id":"snd_1","index":1,"name":"#1 Crisp Pop (UI)","category":"UI Pops & Clicks","wave":"sine","baseFreq":233,"endFreq":357,"duration":0.125,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_2","index":2,"name":"#2 Arcade Coin (Retro)","category":"Retro 8-Bit Arcade","wave":"triangle","baseFreq":286,"endFreq":494,"duration":0.17,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_3","index":3,"name":"#3 Laser Zap (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"square","baseFreq":339,"endFreq":631,"duration":0.215,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":true},{"id":"snd_4","index":4,"name":"#4 Crystal Ting (Chimes)","category":"Chimes & Crystals","wave":"sawtooth","baseFreq":392,"endFreq":768,"duration":0.26,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_5","index":5,"name":"#5 Major Bell (Musical)","category":"Musical Chords","wave":"sine","baseFreq":445,"endFreq":905,"duration":0.305,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_6","index":6,"name":"#6 Water Droplet (Bubbles)","category":"Bubbles & Drops","wave":"triangle","baseFreq":498,"endFreq":1042,"duration":0.35,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":true},{"id":"snd_7","index":7,"name":"#7 Data Blip (Cyber)","category":"Cyber Glitches","wave":"square","baseFreq":551,"endFreq":1179,"duration":0.08,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_8","index":8,"name":"#8 Stream Ping (Notifications)","category":"Notifications","wave":"sawtooth","baseFreq":604,"endFreq":1316,"duration":0.125,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_9","index":9,"name":"#9 Pluck Synth (Synth)","category":"Synth Plucks","wave":"sine","baseFreq":657,"endFreq":1453,"duration":0.17,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":true},{"id":"snd_10","index":10,"name":"#10 Sub Thump (Bass)","category":"Bass & Impacts","wave":"triangle","baseFreq":710,"endFreq":1590,"duration":0.215,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_11","index":11,"name":"#11 Bubble Snap (UI)","category":"UI Pops & Clicks","wave":"square","baseFreq":763,"endFreq":327,"duration":0.26,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_12","index":12,"name":"#12 Power Up (Retro)","category":"Retro 8-Bit Arcade","wave":"sawtooth","baseFreq":816,"endFreq":464,"duration":0.305,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":true},{"id":"snd_13","index":13,"name":"#13 Plasma Beam (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"sine","baseFreq":869,"endFreq":601,"duration":0.35,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_14","index":14,"name":"#14 Diamond Chime (Chimes)","category":"Chimes & Crystals","wave":"triangle","baseFreq":922,"endFreq":738,"duration":0.08,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_15","index":15,"name":"#15 Dream Chord (Musical)","category":"Musical Chords","wave":"square","baseFreq":975,"endFreq":875,"duration":0.125,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":true},{"id":"snd_16","index":16,"name":"#16 Aqua Plop (Bubbles)","category":"Bubbles & Drops","wave":"sawtooth","baseFreq":1028,"endFreq":1012,"duration":0.17,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_17","index":17,"name":"#17 Matrix Beep (Cyber)","category":"Cyber Glitches","wave":"sine","baseFreq":1081,"endFreq":1149,"duration":0.215,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_18","index":18,"name":"#18 Discordant Ding (Notifications)","category":"Notifications","wave":"triangle","baseFreq":214,"endFreq":1286,"duration":0.26,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":true},{"id":"snd_19","index":19,"name":"#19 Harp Pluck (Synth)","category":"Synth Plucks","wave":"square","baseFreq":267,"endFreq":1423,"duration":0.305,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_20","index":20,"name":"#20 808 Knock (Bass)","category":"Bass & Impacts","wave":"sawtooth","baseFreq":320,"endFreq":1560,"duration":0.35,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_21","index":21,"name":"#21 Crisp Pop (UI)","category":"UI Pops & Clicks","wave":"sine","baseFreq":373,"endFreq":297,"duration":0.08,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":true},{"id":"snd_22","index":22,"name":"#22 Arcade Coin (Retro)","category":"Retro 8-Bit Arcade","wave":"triangle","baseFreq":426,"endFreq":434,"duration":0.125,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_23","index":23,"name":"#23 Laser Zap (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"square","baseFreq":479,"endFreq":571,"duration":0.17,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_24","index":24,"name":"#24 Crystal Ting (Chimes)","category":"Chimes & Crystals","wave":"sawtooth","baseFreq":532,"endFreq":708,"duration":0.215,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":true},{"id":"snd_25","index":25,"name":"#25 Major Bell (Musical)","category":"Musical Chords","wave":"sine","baseFreq":585,"endFreq":845,"duration":0.26,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_26","index":26,"name":"#26 Water Droplet (Bubbles)","category":"Bubbles & Drops","wave":"triangle","baseFreq":638,"endFreq":982,"duration":0.305,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_27","index":27,"name":"#27 Data Blip (Cyber)","category":"Cyber Glitches","wave":"square","baseFreq":691,"endFreq":1119,"duration":0.35,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":true},{"id":"snd_28","index":28,"name":"#28 Stream Ping (Notifications)","category":"Notifications","wave":"sawtooth","baseFreq":744,"endFreq":1256,"duration":0.08,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_29","index":29,"name":"#29 Pluck Synth (Synth)","category":"Synth Plucks","wave":"sine","baseFreq":797,"endFreq":1393,"duration":0.125,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_30","index":30,"name":"#30 Sub Thump (Bass)","category":"Bass & Impacts","wave":"triangle","baseFreq":850,"endFreq":1530,"duration":0.17,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":true},{"id":"snd_31","index":31,"name":"#31 Bubble Snap (UI)","category":"UI Pops & Clicks","wave":"square","baseFreq":903,"endFreq":267,"duration":0.215,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_32","index":32,"name":"#32 Power Up (Retro)","category":"Retro 8-Bit Arcade","wave":"sawtooth","baseFreq":956,"endFreq":404,"duration":0.26,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_33","index":33,"name":"#33 Plasma Beam (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"sine","baseFreq":1009,"endFreq":541,"duration":0.305,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":true},{"id":"snd_34","index":34,"name":"#34 Diamond Chime (Chimes)","category":"Chimes & Crystals","wave":"triangle","baseFreq":1062,"endFreq":678,"duration":0.35,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_35","index":35,"name":"#35 Dream Chord (Musical)","category":"Musical Chords","wave":"square","baseFreq":195,"endFreq":815,"duration":0.08,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_36","index":36,"name":"#36 Aqua Plop (Bubbles)","category":"Bubbles & Drops","wave":"sawtooth","baseFreq":248,"endFreq":952,"duration":0.125,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":true},{"id":"snd_37","index":37,"name":"#37 Matrix Beep (Cyber)","category":"Cyber Glitches","wave":"sine","baseFreq":301,"endFreq":1089,"duration":0.17,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_38","index":38,"name":"#38 Discordant Ding (Notifications)","category":"Notifications","wave":"triangle","baseFreq":354,"endFreq":1226,"duration":0.215,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_39","index":39,"name":"#39 Harp Pluck (Synth)","category":"Synth Plucks","wave":"square","baseFreq":407,"endFreq":1363,"duration":0.26,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":true},{"id":"snd_40","index":40,"name":"#40 808 Knock (Bass)","category":"Bass & Impacts","wave":"sawtooth","baseFreq":460,"endFreq":1500,"duration":0.305,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_41","index":41,"name":"#41 Crisp Pop (UI)","category":"UI Pops & Clicks","wave":"sine","baseFreq":513,"endFreq":237,"duration":0.35,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_42","index":42,"name":"#42 Arcade Coin (Retro)","category":"Retro 8-Bit Arcade","wave":"triangle","baseFreq":566,"endFreq":374,"duration":0.08,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":true},{"id":"snd_43","index":43,"name":"#43 Laser Zap (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"square","baseFreq":619,"endFreq":511,"duration":0.125,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_44","index":44,"name":"#44 Crystal Ting (Chimes)","category":"Chimes & Crystals","wave":"sawtooth","baseFreq":672,"endFreq":648,"duration":0.17,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_45","index":45,"name":"#45 Major Bell (Musical)","category":"Musical Chords","wave":"sine","baseFreq":725,"endFreq":785,"duration":0.215,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":true},{"id":"snd_46","index":46,"name":"#46 Water Droplet (Bubbles)","category":"Bubbles & Drops","wave":"triangle","baseFreq":778,"endFreq":922,"duration":0.26,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_47","index":47,"name":"#47 Data Blip (Cyber)","category":"Cyber Glitches","wave":"square","baseFreq":831,"endFreq":1059,"duration":0.305,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_48","index":48,"name":"#48 Stream Ping (Notifications)","category":"Notifications","wave":"sawtooth","baseFreq":884,"endFreq":1196,"duration":0.35,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":true},{"id":"snd_49","index":49,"name":"#49 Pluck Synth (Synth)","category":"Synth Plucks","wave":"sine","baseFreq":937,"endFreq":1333,"duration":0.08,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_50","index":50,"name":"#50 Sub Thump (Bass)","category":"Bass & Impacts","wave":"triangle","baseFreq":990,"endFreq":1470,"duration":0.125,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_51","index":51,"name":"#51 Bubble Snap (UI)","category":"UI Pops & Clicks","wave":"square","baseFreq":1043,"endFreq":1607,"duration":0.17,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":true},{"id":"snd_52","index":52,"name":"#52 Power Up (Retro)","category":"Retro 8-Bit Arcade","wave":"sawtooth","baseFreq":1096,"endFreq":344,"duration":0.215,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_53","index":53,"name":"#53 Plasma Beam (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"sine","baseFreq":229,"endFreq":481,"duration":0.26,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_54","index":54,"name":"#54 Diamond Chime (Chimes)","category":"Chimes & Crystals","wave":"triangle","baseFreq":282,"endFreq":618,"duration":0.305,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":true},{"id":"snd_55","index":55,"name":"#55 Dream Chord (Musical)","category":"Musical Chords","wave":"square","baseFreq":335,"endFreq":755,"duration":0.35,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_56","index":56,"name":"#56 Aqua Plop (Bubbles)","category":"Bubbles & Drops","wave":"sawtooth","baseFreq":388,"endFreq":892,"duration":0.08,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_57","index":57,"name":"#57 Matrix Beep (Cyber)","category":"Cyber Glitches","wave":"sine","baseFreq":441,"endFreq":1029,"duration":0.125,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":true},{"id":"snd_58","index":58,"name":"#58 Discordant Ding (Notifications)","category":"Notifications","wave":"triangle","baseFreq":494,"endFreq":1166,"duration":0.17,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_59","index":59,"name":"#59 Harp Pluck (Synth)","category":"Synth Plucks","wave":"square","baseFreq":547,"endFreq":1303,"duration":0.215,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_60","index":60,"name":"#60 808 Knock (Bass)","category":"Bass & Impacts","wave":"sawtooth","baseFreq":600,"endFreq":1440,"duration":0.26,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":true},{"id":"snd_61","index":61,"name":"#61 Crisp Pop (UI)","category":"UI Pops & Clicks","wave":"sine","baseFreq":653,"endFreq":1577,"duration":0.305,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_62","index":62,"name":"#62 Arcade Coin (Retro)","category":"Retro 8-Bit Arcade","wave":"triangle","baseFreq":706,"endFreq":314,"duration":0.35,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_63","index":63,"name":"#63 Laser Zap (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"square","baseFreq":759,"endFreq":451,"duration":0.08,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":true},{"id":"snd_64","index":64,"name":"#64 Crystal Ting (Chimes)","category":"Chimes & Crystals","wave":"sawtooth","baseFreq":812,"endFreq":588,"duration":0.125,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_65","index":65,"name":"#65 Major Bell (Musical)","category":"Musical Chords","wave":"sine","baseFreq":865,"endFreq":725,"duration":0.17,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_66","index":66,"name":"#66 Water Droplet (Bubbles)","category":"Bubbles & Drops","wave":"triangle","baseFreq":918,"endFreq":862,"duration":0.215,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":true},{"id":"snd_67","index":67,"name":"#67 Data Blip (Cyber)","category":"Cyber Glitches","wave":"square","baseFreq":971,"endFreq":999,"duration":0.26,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_68","index":68,"name":"#68 Stream Ping (Notifications)","category":"Notifications","wave":"sawtooth","baseFreq":1024,"endFreq":1136,"duration":0.305,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_69","index":69,"name":"#69 Pluck Synth (Synth)","category":"Synth Plucks","wave":"sine","baseFreq":1077,"endFreq":1273,"duration":0.35,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":true},{"id":"snd_70","index":70,"name":"#70 Sub Thump (Bass)","category":"Bass & Impacts","wave":"triangle","baseFreq":210,"endFreq":1410,"duration":0.08,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_71","index":71,"name":"#71 Bubble Snap (UI)","category":"UI Pops & Clicks","wave":"square","baseFreq":263,"endFreq":1547,"duration":0.125,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_72","index":72,"name":"#72 Power Up (Retro)","category":"Retro 8-Bit Arcade","wave":"sawtooth","baseFreq":316,"endFreq":284,"duration":0.17,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":true},{"id":"snd_73","index":73,"name":"#73 Plasma Beam (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"sine","baseFreq":369,"endFreq":421,"duration":0.215,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_74","index":74,"name":"#74 Diamond Chime (Chimes)","category":"Chimes & Crystals","wave":"triangle","baseFreq":422,"endFreq":558,"duration":0.26,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_75","index":75,"name":"#75 Dream Chord (Musical)","category":"Musical Chords","wave":"square","baseFreq":475,"endFreq":695,"duration":0.305,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":true},{"id":"snd_76","index":76,"name":"#76 Aqua Plop (Bubbles)","category":"Bubbles & Drops","wave":"sawtooth","baseFreq":528,"endFreq":832,"duration":0.35,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_77","index":77,"name":"#77 Matrix Beep (Cyber)","category":"Cyber Glitches","wave":"sine","baseFreq":581,"endFreq":969,"duration":0.08,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_78","index":78,"name":"#78 Discordant Ding (Notifications)","category":"Notifications","wave":"triangle","baseFreq":634,"endFreq":1106,"duration":0.125,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":true},{"id":"snd_79","index":79,"name":"#79 Harp Pluck (Synth)","category":"Synth Plucks","wave":"square","baseFreq":687,"endFreq":1243,"duration":0.17,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_80","index":80,"name":"#80 808 Knock (Bass)","category":"Bass & Impacts","wave":"sawtooth","baseFreq":740,"endFreq":1380,"duration":0.215,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_81","index":81,"name":"#81 Crisp Pop (UI)","category":"UI Pops & Clicks","wave":"sine","baseFreq":793,"endFreq":1517,"duration":0.26,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":true},{"id":"snd_82","index":82,"name":"#82 Arcade Coin (Retro)","category":"Retro 8-Bit Arcade","wave":"triangle","baseFreq":846,"endFreq":254,"duration":0.305,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_83","index":83,"name":"#83 Laser Zap (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"square","baseFreq":899,"endFreq":391,"duration":0.35,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_84","index":84,"name":"#84 Crystal Ting (Chimes)","category":"Chimes & Crystals","wave":"sawtooth","baseFreq":952,"endFreq":528,"duration":0.08,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":true},{"id":"snd_85","index":85,"name":"#85 Major Bell (Musical)","category":"Musical Chords","wave":"sine","baseFreq":1005,"endFreq":665,"duration":0.125,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_86","index":86,"name":"#86 Water Droplet (Bubbles)","category":"Bubbles & Drops","wave":"triangle","baseFreq":1058,"endFreq":802,"duration":0.17,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_87","index":87,"name":"#87 Data Blip (Cyber)","category":"Cyber Glitches","wave":"square","baseFreq":191,"endFreq":939,"duration":0.215,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":true},{"id":"snd_88","index":88,"name":"#88 Stream Ping (Notifications)","category":"Notifications","wave":"sawtooth","baseFreq":244,"endFreq":1076,"duration":0.26,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_89","index":89,"name":"#89 Pluck Synth (Synth)","category":"Synth Plucks","wave":"sine","baseFreq":297,"endFreq":1213,"duration":0.305,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_90","index":90,"name":"#90 Sub Thump (Bass)","category":"Bass & Impacts","wave":"triangle","baseFreq":350,"endFreq":1350,"duration":0.35,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":true},{"id":"snd_91","index":91,"name":"#91 Bubble Snap (UI)","category":"UI Pops & Clicks","wave":"square","baseFreq":403,"endFreq":1487,"duration":0.08,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_92","index":92,"name":"#92 Power Up (Retro)","category":"Retro 8-Bit Arcade","wave":"sawtooth","baseFreq":456,"endFreq":224,"duration":0.125,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_93","index":93,"name":"#93 Plasma Beam (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"sine","baseFreq":509,"endFreq":361,"duration":0.17,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":true},{"id":"snd_94","index":94,"name":"#94 Diamond Chime (Chimes)","category":"Chimes & Crystals","wave":"triangle","baseFreq":562,"endFreq":498,"duration":0.215,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_95","index":95,"name":"#95 Dream Chord (Musical)","category":"Musical Chords","wave":"square","baseFreq":615,"endFreq":635,"duration":0.26,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_96","index":96,"name":"#96 Aqua Plop (Bubbles)","category":"Bubbles & Drops","wave":"sawtooth","baseFreq":668,"endFreq":772,"duration":0.305,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":true},{"id":"snd_97","index":97,"name":"#97 Matrix Beep (Cyber)","category":"Cyber Glitches","wave":"sine","baseFreq":721,"endFreq":909,"duration":0.35,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_98","index":98,"name":"#98 Discordant Ding (Notifications)","category":"Notifications","wave":"triangle","baseFreq":774,"endFreq":1046,"duration":0.08,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_99","index":99,"name":"#99 Harp Pluck (Synth)","category":"Synth Plucks","wave":"square","baseFreq":827,"endFreq":1183,"duration":0.125,"hasSecondNote":false,"secondRatio":1.85,"hasThirdNote":true},{"id":"snd_100","index":100,"name":"#100 808 Knock (Bass)","category":"Bass & Impacts","wave":"sawtooth","baseFreq":880,"endFreq":1320,"duration":0.17,"hasSecondNote":true,"secondRatio":1.25,"hasThirdNote":false},{"id":"snd_101","index":101,"name":"#101 Crisp Pop (UI)","category":"UI Pops & Clicks","wave":"sine","baseFreq":933,"endFreq":1457,"duration":0.215,"hasSecondNote":false,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_102","index":102,"name":"#102 Arcade Coin (Retro)","category":"Retro 8-Bit Arcade","wave":"triangle","baseFreq":986,"endFreq":1594,"duration":0.26,"hasSecondNote":true,"secondRatio":1.55,"hasThirdNote":true},{"id":"snd_103","index":103,"name":"#103 Laser Zap (Sci-Fi)","category":"Sci-Fi & Lasers","wave":"square","baseFreq":1039,"endFreq":331,"duration":0.305,"hasSecondNote":false,"secondRatio":1.7,"hasThirdNote":false},{"id":"snd_104","index":104,"name":"#104 Crystal Ting (Chimes)","category":"Chimes & Crystals","wave":"sawtooth","baseFreq":1092,"endFreq":468,"duration":0.35,"hasSecondNote":true,"secondRatio":1.85,"hasThirdNote":false},{"id":"snd_105","index":105,"name":"#105 Major Bell (Musical)","category":"Musical Chords","wave":"sine","baseFreq":225,"endFreq":605,"duration":0.08,"hasSecondNote":false,"secondRatio":1.25,"hasThirdNote":true},{"id":"snd_106","index":106,"name":"#106 Water Droplet (Bubbles)","category":"Bubbles & Drops","wave":"triangle","baseFreq":278,"endFreq":742,"duration":0.125,"hasSecondNote":true,"secondRatio":1.4,"hasThirdNote":false},{"id":"snd_107","index":107,"name":"#107 Data Blip (Cyber)","category":"Cyber Glitches","wave":"square","baseFreq":331,"endFreq":879,"duration":0.17,"hasSecondNote":false,"secondRatio":1.55,"hasThirdNote":false},{"id":"snd_108","index":108,"name":"#108 Stream Ping (Notifications)","category":"Notifications","wave":"sawtooth","baseFreq":384,"endFreq":1016,"duration":0.215,"hasSecondNote":true,"secondRatio":1.7,"hasThirdNote":true}];
+    const BUILTIN_EMOTES = {"catJAM":{"type":"svg","anim":"anim-emote-jam","label":"🐱🎧","bg":"#a855f7"},"PogChamp":{"type":"svg","anim":"anim-emote-pulse","label":"😲🔥","bg":"#f59e0b"},"KEKW":{"type":"svg","anim":"anim-emote-shake","label":"🤣💨","bg":"#ef4444"},"pepeD":{"type":"svg","anim":"anim-emote-bounce","label":"🐸🕺","bg":"#22c55e"},"HYPERS":{"type":"svg","anim":"anim-emote-bounce","label":"🤩⚡","bg":"#3b82f6"},"GG":{"type":"svg","anim":"anim-emote-pulse","label":"🏆GG","bg":"#eab308"},"FIRE":{"type":"svg","anim":"anim-emote-pulse","label":"🔥💯","bg":"#f97316"},"LULW":{"type":"svg","anim":"anim-emote-shake","label":"😂👏","bg":"#ec4899"},"OMEGALUL":{"type":"svg","anim":"anim-emote-spin","label":"🌀😂","bg":"#8b5cf6"},"EZ":{"type":"svg","anim":"anim-emote-bounce","label":"😎👌","bg":"#10b981"},"Clap":{"type":"svg","anim":"anim-emote-jam","label":"👏✨","bg":"#fbbf24"},"Heart":{"type":"svg","anim":"anim-emote-pulse","label":"💜💖","bg":"#f43f5e"}};
+
+    let messageAlternator = 0;
+    let activeMessages = [];
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx;
+    }
+    function playProceduralSound(soundId, isAnnouncement = false) {
+      if (isAnnouncement && CONFIG.announcementSound) {
+        playAnnouncementFanfare();
+        return;
+      }
+      if (CONFIG.soundId === 'none' && !soundId) return;
+
+      const targetId = soundId || CONFIG.soundId;
+      if (targetId === 'none') return;
+
+      if (targetId === 'custom_file') {
+        try {
+          const audio = new Audio(CONFIG.customSoundFile || './sound.mp3');
+          audio.volume = Math.min(1, Math.max(0, CONFIG.soundVolume / 100));
+          audio.play().catch(() => {});
+        } catch (e) {}
+        return;
+      }
+
+      let preset = null;
+      if (targetId === 'random') {
+        preset = CHAT_SOUNDS_108[Math.floor(Math.random() * CHAT_SOUNDS_108.length)];
+      } else {
+        preset = CHAT_SOUNDS_108.find(s => s.id === targetId) || CHAT_SOUNDS_108[0];
+      }
+
+      const ctx = getAudioContext();
+      if (!ctx) return;
+
+      const now = ctx.currentTime;
+      const vol = (CONFIG.soundVolume / 100) * 0.35;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.01, vol), now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + preset.duration);
+      gain.connect(ctx.destination);
+
+      const osc1 = ctx.createOscillator();
+      osc1.type = preset.wave;
+      osc1.frequency.setValueAtTime(preset.baseFreq, now);
+      osc1.frequency.exponentialRampToValueAtTime(preset.endFreq, now + preset.duration * 0.85);
+      osc1.connect(gain);
+      osc1.start(now);
+      osc1.stop(now + preset.duration);
+
+      if (preset.hasSecondNote) {
+        const osc2 = ctx.createOscillator();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(preset.baseFreq * preset.secondRatio, now + preset.duration * 0.35);
+        osc2.connect(gain);
+        osc2.start(now + preset.duration * 0.35);
+        osc2.stop(now + preset.duration);
+      }
+
+      if (preset.hasThirdNote) {
+        const osc3 = ctx.createOscillator();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(preset.endFreq * 1.5, now + preset.duration * 0.6);
+        osc3.connect(gain);
+        osc3.start(now + preset.duration * 0.6);
+        osc3.stop(now + preset.duration);
+      }
+    }
+    function playAnnouncementFanfare() {
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5 E5 G5 C6
+      const vol = (CONFIG.soundVolume / 100) * 0.3;
+      notes.forEach((freq, idx) => {
+        const start = ctx.currentTime + idx * 0.075;
+        const dur = 0.28;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.001, start);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.01, vol), start + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+        g.connect(ctx.destination);
+
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, start);
+        osc.connect(g);
+        osc.start(start);
+        osc.stop(start + dur);
+      });
+    }
+    function getPlatformIconSVG(platform) {
+      const p = (platform || 'twitch').toLowerCase();
+      if (p === 'kick') {
+        return `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#53FC18] text-black font-black text-[10px] shrink-0" title="Kick">K</span>`;
+      }
+      if (p === 'youtube') {
+        return `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#FF0000] text-white shrink-0" title="YouTube">
+          <svg viewBox="0 0 24 24" class="w-3 h-3 fill-current"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+        </span>`;
+      }
+      // Twitch default
+      return `<span class="inline-flex items-center justify-center w-4 h-4 rounded bg-[#9146FF] text-white shrink-0" title="Twitch">
+        <svg viewBox="0 0 24 24" class="w-3 h-3 fill-current"><path d="M11.6 6H13v4.5h-1.4V6zm3.8 0H17v4.5h-1.6V6zM4.5 2L2 6.5v13h4.5V22l2.5-2.5h3.5L20 12V2H4.5zm14 9.3l-3 3H11l-2.5 2.5v-2.5H5.5V3.5h13v7.8z"/></svg>
+      </span>`;
+    }
+    function getRoleBadgeHTML(badge) {
+      if (typeof badge === 'object' && badge !== null && badge.imageUrl) {
+        return `<img src="${badge.imageUrl}" alt="${badge.name || 'badge'}" class="w-4 h-4 inline-block rounded-sm object-contain shrink-0" />`;
+      }
+      const b = String(badge.name || badge).toLowerCase();
+      if (b.includes('broadcaster') || b.includes('owner') || b.includes('host')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-rose-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Broadcaster">🎥 HOST</span>`;
+      }
+      if (b.includes('mod')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-emerald-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Moderator">⚔️ MOD</span>`;
+      }
+      if (b.includes('vip')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-pink-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="VIP">💎 VIP</span>`;
+      }
+      if (b.includes('founder')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-purple-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Founder">👑 1ST</span>`;
+      }
+      if (b.includes('sub') || b.includes('member')) {
+        return `<span class="inline-flex items-center justify-center px-1 h-4 rounded bg-indigo-600 text-white text-[9px] font-black uppercase tracking-tighter shrink-0" title="Subscriber">⭐ SUB</span>`;
+      }
+      if (b.includes('verified') || b.includes('partner')) {
+        return `<span class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-sky-500 text-white text-[10px] font-bold shrink-0" title="Verified">✓</span>`;
+      }
+      return '';
+    }
+    function resolveAvatarUrl(msg) {
+      if (msg.avatar && msg.avatar.startsWith('http')) return msg.avatar;
+      const cleanUser = encodeURIComponent((msg.username || 'Streamer').replace(/[^a-zA-Z0-9_-]/g, ''));
+      const plat = (msg.platform || 'twitch').toLowerCase();
+      if (plat === 'twitch') return `https://unavatar.io/twitch/${cleanUser}?fallback=https://placehold.co/64x64/9146ff/ffffff?text=${cleanUser.slice(0,2).toUpperCase()}`;
+      if (plat === 'youtube') return `https://unavatar.io/youtube/${cleanUser}?fallback=https://placehold.co/64x64/ff0000/ffffff?text=${cleanUser.slice(0,2).toUpperCase()}`;
+      return `https://placehold.co/64x64/53fc18/050505?text=${cleanUser.slice(0,2).toUpperCase()}`;
+    }
+    function isBotUser(username, isBotFlag) {
+      if (isBotFlag) return true;
+      const list = (CONFIG.botNamesList || '')
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean);
+      return list.includes((username || '').trim().toLowerCase());
+    }
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    function applyTextModerationFilters(rawText) {
+      let text = String(rawText || '');
+
+      // 1. Web Link Filter
+      if (CONFIG.filterLinks) {
+        const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|\b[a-zA-Z0-9-]+\.(com|tv|gg|net|org|xyz|io|me|co|live)(\/[^\s]*)?)/gi;
+        if (urlRegex.test(text)) {
+          if (CONFIG.linkAction === 'block') {
+            return { blocked: true, reason: 'Blocked Web Link' };
+          }
+          text = text.replace(urlRegex, '[link removed]');
+        }
+      }
+
+      // 2. Swear Words Filter
+      if (CONFIG.filterSwears) {
+        const words = (CONFIG.swearWordsList || '')
+          .split(',')
+          .map(w => w.trim())
+          .filter(Boolean);
+        for (const bad of words) {
+          const escapedBad = bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const rgx = new RegExp(`\\b${escapedBad}\\b`, 'gi');
+          if (rgx.test(text)) {
+            if (CONFIG.swearAction === 'block') {
+              return { blocked: true, reason: 'Blocked Swear Word' };
+            }
+            text = text.replace(rgx, '****');
+          }
+        }
+      }
+
+      return { blocked: false, text };
+    }
+    function renderTextWithEmotes(cleanText, payloadEmotes = []) {
+      let html = escapeHtml(cleanText);
+      if (!CONFIG.showEmotes) return html;
+
+      const sizePx = CONFIG.emoteSize || 28;
+
+      // Replace payload emotes from Streamer.bot if present
+      if (Array.isArray(payloadEmotes) && payloadEmotes.length > 0) {
+        payloadEmotes.forEach(em => {
+          if (em && em.name && em.imageUrl) {
+            const safeName = escapeHtml(em.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const rgx = new RegExp(`\\b${safeName}\\b`, 'g');
+            html = html.replace(
+              rgx,
+              `<img src="${em.imageUrl}" alt="${escapeHtml(em.name)}" style="height:${sizePx}px; width:auto; display:inline-block; vertical-align:middle; margin:0 2px;" />`
+            );
+          }
+        });
+      }
+
+      // Replace Custom User Emotes
+      if (Array.isArray(CONFIG.customEmotes)) {
+        CONFIG.customEmotes.forEach(ce => {
+          if (ce && ce.code && ce.url) {
+            const safeCode = escapeHtml(ce.code).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const rgx = new RegExp(`\\b${safeCode}\\b`, 'g');
+            html = html.replace(
+              rgx,
+              `<img src="${ce.url}" alt="${escapeHtml(ce.code)}" style="height:${sizePx}px; width:auto; display:inline-block; vertical-align:middle; margin:0 2px; border-radius:4px;" />`
+            );
+          }
+        });
+      }
+
+      // Replace Built-in Animated & Standard Emotes
+      Object.keys(BUILTIN_EMOTES).forEach(code => {
+        const info = BUILTIN_EMOTES[code];
+        const rgx = new RegExp(`\\b${code}\\b`, 'g');
+        const animClass = CONFIG.showAnimatedEmotes ? info.anim : '';
+        const badgeHtml = `<span class="${animClass}" style="display:inline-flex; align-items:center; justify-content:center; height:${sizePx}px; padding:0 6px; margin:0 2px; border-radius:6px; background:${info.bg}33; border:1px solid ${info.bg}; font-size:${Math.round(sizePx * 0.62)}px; vertical-align:middle; line-height:1;" title="${code}">${info.label}</span>`;
+        html = html.replace(rgx, badgeHtml);
+      });
+
+      return html;
+    }
+    function hexToRgba(hex, alpha = 1) {
+      const clean = (hex || '#181b28').replace('#', '');
+      const num = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    function showToastFilterFeedback() {}
+    function addChatMessageToOverlay(msgData) {
+      // 1. Check Bot Filter
+      if (!CONFIG.showBotMessages && isBotUser(msgData.username, msgData.isBot)) {
+        showToastFilterFeedback(`Bot message hidden (${msgData.username})`);
+        return;
+      }
+
+      // 2. Check Swear & Link Filters
+      const modResult = applyTextModerationFilters(msgData.text);
+      if (modResult.blocked) {
+        showToastFilterFeedback(modResult.reason);
+        return;
+      }
+
+      const listEl = document.getElementById('chat-messages-list');
+      if (!listEl) return;
+
+      // 3. Play Sound
+      playProceduralSound(null, !!msgData.isAnnouncement);
+
+      // 4. Resolve Active Style Preset
+      const styleObj = CHAT_STYLES_108.find(s => s.id === CONFIG.styleId) || CHAT_STYLES_108[0];
+
+      // 5. Resolve Active Entrance Effect
+      let chosenFxId = CONFIG.animationId;
+      if (chosenFxId === 'random') {
+        const randFx = CHAT_EFFECTS_108[Math.floor(Math.random() * CHAT_EFFECTS_108.length)];
+        chosenFxId = randFx.id;
+      }
+
+      // 6. Resolve Platform & User Colors
+      const platform = (msgData.platform || 'twitch').toLowerCase();
+      const platformColor =
+        platform === 'kick' ? CONFIG.kickColor :
+        platform === 'youtube' ? CONFIG.youtubeColor :
+        CONFIG.twitchColor;
+
+      let activeAccentColor = styleObj.accent;
+      let usernameColor = platformColor;
+      let textColor = CONFIG.customTextColor || '#F8FAFC';
+      let cardBg = styleObj.bg;
+      let cardBorderColor = styleObj.border;
+
+      const opacityAlpha = (CONFIG.bubbleOpacity ?? 88) / 100;
+
+      if (CONFIG.colorMode === 'platform') {
+        activeAccentColor = platformColor;
+        usernameColor = platformColor;
+        if (CONFIG.colorScope === 'full_bubble') {
+          cardBg = `linear-gradient(135deg, ${hexToRgba(platformColor, opacityAlpha * 0.42)}, rgba(12, 14, 24, ${opacityAlpha}))`;
+          cardBorderColor = hexToRgba(platformColor, 0.75);
+        } else if (CONFIG.colorScope === 'accent_and_name') {
+          cardBorderColor = hexToRgba(platformColor, 0.55);
+        } else if (CONFIG.colorScope === 'full_text') {
+          textColor = platformColor;
+          cardBorderColor = hexToRgba(platformColor, 0.55);
+        }
+      } else if (CONFIG.colorMode === 'user_color') {
+        const uCol = msgData.userColor || platformColor;
+        activeAccentColor = uCol;
+        usernameColor = uCol;
+        if (CONFIG.colorScope === 'full_bubble') {
+          cardBg = `linear-gradient(135deg, ${hexToRgba(uCol, opacityAlpha * 0.36)}, rgba(12, 14, 24, ${opacityAlpha}))`;
+          cardBorderColor = hexToRgba(uCol, 0.65);
+        } else if (CONFIG.colorScope === 'accent_and_name') {
+          cardBorderColor = hexToRgba(uCol, 0.5);
+        }
+      } else if (CONFIG.colorMode === 'custom') {
+        usernameColor = CONFIG.customUsernameColor;
+        activeAccentColor = CONFIG.customUsernameColor;
+        cardBg = styleObj.transparentCard ? 'transparent' : hexToRgba(CONFIG.customBubbleBg, opacityAlpha);
+        cardBorderColor = hexToRgba(CONFIG.customUsernameColor, 0.4);
+      }
+
+      // 7. Determine Layout & Alignment
+      const layoutMode = CONFIG.messageLayout === 'style_default' ? styleObj.layout : CONFIG.messageLayout;
+      messageAlternator++;
+      let alignSide = CONFIG.messageAlign;
+      if (alignSide === 'alternating') {
+        alignSide = messageAlternator % 2 === 0 ? 'right' : 'left';
+      }
+
+      // 8. Build Card Element
+      const msgId = msgData.id || ('msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7));
+      const wrapper = document.createElement('div');
+      wrapper.dataset.msgId = msgId;
+      wrapper.dataset.userId = msgData.userId || '';
+      wrapper.dataset.username = (msgData.username || '').toLowerCase();
+      wrapper.style.marginBottom = `${CONFIG.messageGap}px`;
+      wrapper.style.display = 'flex';
+      wrapper.style.justifyContent = alignSide === 'right' ? 'flex-end' : 'flex-start';
+      wrapper.style.transition = CONFIG.smoothStackSlide ? 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease' : 'none';
+
+      const card = document.createElement('div');
+      card.style.position = 'relative';
+      card.style.maxWidth = '96%';
+      card.style.width = styleObj.category === 'Esports' || styleObj.category === 'Terminal' ? '100%' : 'auto';
+      card.style.padding = `${CONFIG.cardPadding}px ${CONFIG.cardPadding + 4}px`;
+      card.style.borderRadius = `${styleObj.radius}px`;
+      card.style.background = cardBg;
+      card.style.border = styleObj.borderW > 0 ? `${styleObj.borderW}px solid ${cardBorderColor}` : 'none';
+      card.style.fontFamily = `'${CONFIG.fontFamily}', sans-serif`;
+      card.style.fontSize = `${CONFIG.fontSize}px`;
+      card.style.lineHeight = CONFIG.lineHeight;
+      card.style.color = textColor;
+      card.style.animation = `${chosenFxId} ${CONFIG.animationDuration}ms cubic-bezier(0.22, 1, 0.36, 1) forwards`;
+
+      if (styleObj.blur > 0 && !styleObj.transparentCard) {
+        card.style.backdropFilter = `blur(${styleObj.blur}px)`;
+        card.style.webkitBackdropFilter = `blur(${styleObj.blur}px)`;
+      }
+
+      // Shadow style by category
+      if (!styleObj.transparentCard) {
+        if (styleObj.shadowType === 'neon') {
+          card.style.boxShadow = `0 0 14px ${hexToRgba(activeAccentColor, 0.45)}, inset 0 0 8px ${hexToRgba(activeAccentColor, 0.15)}`;
+        } else if (styleObj.shadowType === 'comic' || styleObj.shadowType === 'brutal') {
+          card.style.boxShadow = `4px 4px 0px ${activeAccentColor}`;
+        } else if (styleObj.shadowType === 'pixel') {
+          card.style.boxShadow = `3px 3px 0px #000000`;
+        } else if (styleObj.shadowType !== 'none') {
+          card.style.boxShadow = `0 8px 22px rgba(0, 0, 0, 0.38)`;
+        }
+      }
+
+      // Cyberpunk clip-path
+      if (styleObj.clip === 'cyber') {
+        card.style.clipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px))';
+      }
+
+      // Accent Bars
+      if (styleObj.accentBar === 'left') {
+        card.style.borderLeft = `4px solid ${activeAccentColor}`;
+      } else if (styleObj.accentBar === 'right') {
+        card.style.borderRight = `4px solid ${activeAccentColor}`;
+      } else if (styleObj.accentBar === 'bottom') {
+        card.style.borderBottom = `3px solid ${activeAccentColor}`;
+      }
+
+      // Text shadow / stroke
+      if (CONFIG.textShadowMode === 'strong_outline') {
+        card.style.textShadow = '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0,0,0,0.85)';
+      } else if (CONFIG.textShadowMode === 'neon_glow') {
+        card.style.textShadow = `0 0 8px ${hexToRgba(activeAccentColor, 0.8)}, 0 1px 2px rgba(0,0,0,0.9)`;
+      } else if (CONFIG.textShadowMode === 'soft') {
+        card.style.textShadow = '0 1px 3px rgba(0,0,0,0.75)';
+      }
+
+      // Local image.png per-message border or background
+      if (CONFIG.bgMode === 'image_png') {
+        const imgUrl = CONFIG.imagePngPreviewDataUrl || CONFIG.imagePngPath || './image.png';
+        if (CONFIG.imagePngMode === 'message_border') {
+          card.style.border = `${CONFIG.imagePngWidth}px solid transparent`;
+          card.style.borderImage = `url('${imgUrl}') ${CONFIG.imagePngSlice} fill / ${CONFIG.imagePngWidth}px stretch`;
+        } else if (CONFIG.imagePngMode === 'message_bg') {
+          card.style.backgroundImage = `url('${imgUrl}')`;
+          card.style.backgroundSize = 'cover';
+          card.style.backgroundPosition = 'center';
+        }
+      }
+
+      // 9. Announcement Pop More Override
+      let announcementBannerHTML = '';
+      if (msgData.isAnnouncement && CONFIG.announcementPop) {
+        card.classList.add('sb-announcement-card');
+        card.style.width = '100%';
+        card.style.transform = 'scale(1.01)';
+        const themes = {
+          gold_royal: { bg: 'linear-gradient(135deg, rgba(120, 53, 15, 0.94), rgba(30, 27, 75, 0.94))', border: '#f59e0b', bannerBg: 'linear-gradient(90deg, #f59e0b, #ec4899)', text: '#fef3c7' },
+          cyber_magenta: { bg: 'linear-gradient(135deg, rgba(80, 7, 36, 0.94), rgba(15, 23, 42, 0.94))', border: '#ec4899', bannerBg: 'linear-gradient(90deg, #ec4899, #06b6d4)', text: '#fce7f3' },
+          emerald_flare: { bg: 'linear-gradient(135deg, rgba(6, 78, 59, 0.94), rgba(15, 23, 42, 0.94))', border: '#10b981', bannerBg: 'linear-gradient(90deg, #10b981, #eab308)', text: '#d1fae5' },
+          crimson_alert: { bg: 'linear-gradient(135deg, rgba(127, 29, 29, 0.94), rgba(17, 24, 39, 0.94))', border: '#ef4444', bannerBg: 'linear-gradient(90deg, #ef4444, #f97316)', text: '#fee2e2' }
+        };
+        const th = themes[CONFIG.announcementTheme] || themes.gold_royal;
+        card.style.background = th.bg;
+        card.style.border = `2px solid ${th.border}`;
+        announcementBannerHTML = `
+          <div style="background:${th.bannerBg}; color:#090a0f; font-weight:900; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; padding:3px 8px; border-radius:6px; margin-bottom:6px; display:inline-flex; align-items:center; gap:5px;">
+            <span>${escapeHtml(CONFIG.announcementTitle || '📢 STREAM ANNOUNCEMENT')}</span>
+          </div>
+        `;
+      }
+
+      // 10. Build Avatar, Badges, Username & Message Content
+      const avatarSize = CONFIG.avatarSize || 32;
+      const avatarRadius = CONFIG.avatarShape === 'circle' ? '9999px' : CONFIG.avatarShape === 'rounded' ? '8px' : '0px';
+      const avatarHexClass = CONFIG.avatarShape === 'hexagon' ? 'avatar-hexagon' : '';
+      const avatarHTML = CONFIG.showAvatars ? `
+        <img
+          src="${resolveAvatarUrl(msgData)}"
+          onerror="this.onerror=null;this.src='https://placehold.co/64x64/6d28d9/ffffff?text=${encodeURIComponent((msgData.username || 'U').slice(0,2).toUpperCase())}';"
+          class="${avatarHexClass} shrink-0 object-cover"
+          style="width:${avatarSize}px; height:${avatarSize}px; border-radius:${avatarRadius}; border:2px solid ${activeAccentColor};"
+          alt="${escapeHtml(msgData.username)}"
+        />
+      ` : '';
+
+      const platformBadgeHTML = CONFIG.showPlatformBadge ? getPlatformIconSVG(platform) : '';
+      const roleBadgesHTML = (CONFIG.showBadges && Array.isArray(msgData.badges))
+        ? msgData.badges.map(getRoleBadgeHTML).join('')
+        : '';
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timestampHTML = CONFIG.showTimestamp
+        ? `<span style="font-size:0.75em; opacity:0.6; margin-right:4px;">${timeStr}</span>`
+        : '';
+
+      const parsedMessageHTML = renderTextWithEmotes(modResult.text, msgData.emotes);
+
+      if (layoutMode === 'inline') {
+        card.innerHTML = `
+          ${announcementBannerHTML}
+          <div style="display:flex; align-items:center; gap:8px;">
+            ${avatarHTML}
+            <div style="min-width:0; word-break:break-word;">
+              <span style="display:inline-flex; align-items:center; gap:4px; vertical-align:middle; margin-right:4px;">
+                ${timestampHTML}
+                ${platformBadgeHTML}
+                ${roleBadgesHTML}
+                <span style="font-weight:${CONFIG.usernameWeight}; color:${usernameColor};">${escapeHtml(msgData.username)}:</span>
+              </span>
+              <span style="vertical-align:middle;">${parsedMessageHTML}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        card.innerHTML = `
+          ${announcementBannerHTML}
+          <div style="display:flex; align-items:flex-start; gap:10px;">
+            ${avatarHTML}
+            <div style="flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:2px;">
+                ${timestampHTML}
+                ${platformBadgeHTML}
+                ${roleBadgesHTML}
+                <span style="font-weight:${CONFIG.usernameWeight}; color:${usernameColor};">${escapeHtml(msgData.username)}</span>
+              </div>
+              <div style="word-break:break-word;">${parsedMessageHTML}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      wrapper.appendChild(card);
+      listEl.appendChild(wrapper);
+
+      // 11. Track Active Message & Set Auto-Disappear Timer if enabled
+      let timerId = null;
+      if (!CONFIG.showAlways) {
+        const mult = CONFIG.hideAfterUnit === 'minutes' ? 60000 : 1000;
+        const ms = Math.max(1000, (CONFIG.hideAfterValue || 30) * mult);
+        timerId = setTimeout(() => {
+          removeMessageElement(msgId);
+        }, ms);
+      }
+
+      activeMessages.push({
+        id: msgId,
+        userId: String(msgData.userId || ''),
+        username: String(msgData.username || '').toLowerCase(),
+        platform,
+        wrapperEl: wrapper,
+        cardEl: card,
+        timerId
+      });
+
+      // 12. Enforce Max Messages Limit
+      while (activeMessages.length > (CONFIG.maxMessages || 15)) {
+        const oldest = activeMessages.shift();
+        if (oldest) {
+          clearTimeout(oldest.timerId);
+          animateAndRemoveNode(oldest.wrapperEl, oldest.cardEl);
+        }
+      }
+    }
+    function animateAndRemoveNode(wrapperEl, cardEl) {
+      if (!wrapperEl || !wrapperEl.parentNode) return;
+      if (cardEl) {
+        cardEl.style.animation = `out_${CONFIG.outEffect || 'fade_up'} 320ms ease forwards`;
+      }
+      setTimeout(() => {
+        if (wrapperEl.parentNode) wrapperEl.parentNode.removeChild(wrapperEl);
+      }, 310);
+    }
+    function removeMessageElement(msgId) {
+      const idx = activeMessages.findIndex(m => m.id === msgId);
+      if (idx === -1) return;
+      const item = activeMessages[idx];
+      activeMessages.splice(idx, 1);
+      clearTimeout(item.timerId);
+      animateAndRemoveNode(item.wrapperEl, item.cardEl);
+    }
+    function removeMessagesByUser(userId, username) {
+      if (!CONFIG.deleteOnBanOrDelete) return;
+      const targetUser = String(username || '').toLowerCase();
+      const targetId = String(userId || '');
+      const toRemove = activeMessages.filter(m =>
+        (targetId && m.userId === targetId) || (targetUser && m.username === targetUser)
+      );
+      toRemove.forEach(m => removeMessageElement(m.id));
+      if (toRemove.length > 0) {
+        showToastFilterFeedback(`Deleted ${toRemove.length} msg(s) from banned/moderated user`);
+      }
+    }
+    function clearAllMessages() {
+      activeMessages.forEach(m => clearTimeout(m.timerId));
+      activeMessages = [];
+      const listEl = document.getElementById('chat-messages-list');
+      if (listEl) listEl.innerHTML = '';
+    }
+    function handleStreamerBotPayload(payload) {
+      if (!payload || !payload.event) return;
+      const source = (payload.event.source || '').toLowerCase();
+      const type = (payload.event.type || '').toLowerCase();
+      const d = payload.data || {};
+
+      // Moderation / Deletion Events
+      if (type.includes('deleted')) {
+        const targetMsgId = d.messageId || d.msgId || (d.message && d.message.msgId);
+        if (targetMsgId && CONFIG.deleteOnBanOrDelete) {
+          removeMessageElement(targetMsgId);
+        }
+        return;
+      }
+      if (type.includes('banned') || type.includes('timedout')) {
+        const uid = d.userId || (d.user && d.user.id) || '';
+        const uname = d.userName || d.username || (d.user && d.user.name) || (d.user && d.user.login) || '';
+        removeMessagesByUser(uid, uname);
+        return;
+      }
+      if (type.includes('cleared')) {
+        clearAllMessages();
+        return;
+      }
+
+      // Twitch ChatMessage / Announcement
+      if (source === 'twitch' && (type === 'chatmessage' || type === 'announcement')) {
+        const m = d.message || d;
+        addChatMessageToOverlay({
+          id: m.msgId || d.messageId || ('tw_' + Date.now()),
+          userId: m.userId || (d.user && d.user.id) || '',
+          username: m.displayName || m.username || (d.user && d.user.name) || 'TwitchUser',
+          platform: 'twitch',
+          text: m.message || d.text || '',
+          userColor: m.color || (d.user && d.user.color) || '#9146FF',
+          avatar: d.profileImageUrl || m.profileImageUrl || (d.user && d.user.profileImageUrl) || '',
+          badges: m.badges || d.badges || [],
+          emotes: m.emotes || d.emotes || [],
+          isAnnouncement: type === 'announcement',
+          isBot: Boolean(m.isBot)
+        });
+        return;
+      }
+
+      // YouTube Message / SuperChat
+      if (source === 'youtube' && (type === 'message' || type === 'superchat')) {
+        const u = d.user || {};
+        addChatMessageToOverlay({
+          id: d.eventId || ('yt_' + Date.now()),
+          userId: u.id || '',
+          username: u.name || d.authorName || 'YouTubeUser',
+          platform: 'youtube',
+          text: d.message || '',
+          userColor: '#FF0000',
+          avatar: u.profileImageUrl || d.profileImageUrl || '',
+          badges: [
+            ...(u.isOwner ? ['broadcaster'] : []),
+            ...(u.isModerator ? ['moderator'] : []),
+            ...(u.isSponsor ? ['subscriber'] : []),
+            ...(u.isVerified ? ['verified'] : [])
+          ],
+          emotes: d.emotes || [],
+          isAnnouncement: type === 'superchat'
+        });
+        return;
+      }
+
+      // Kick ChatMessage
+      if (source === 'kick' && type === 'chatmessage') {
+        const m = d.message || d;
+        const u = d.user || m.sender || {};
+        addChatMessageToOverlay({
+          id: m.id || d.messageId || ('kk_' + Date.now()),
+          userId: u.id || m.userId || '',
+          username: u.username || u.name || m.displayName || 'KickUser',
+          platform: 'kick',
+          text: m.content || m.message || d.text || '',
+          userColor: (u.identity && u.identity.color) || m.color || '#53FC18',
+          avatar: u.profilePic || u.profile_pic || u.avatar || d.profileImageUrl || '',
+          badges: m.badges || (u.identity && u.identity.badges) || [],
+          emotes: m.emotes || d.emotes || [],
+          isAnnouncement: false
+        });
+      }
+    }
+    function applyContainerBackgroundStyles() {
+      const root = document.getElementById('obs-overlay-root');
+      if (!root) return;
+
+      root.style.background = 'transparent';
+      root.style.border = 'none';
+      root.style.borderImage = 'none';
+      root.style.webkitMaskImage = CONFIG.topFadeMask
+        ? 'linear-gradient(to bottom, transparent 0%, black 14%, black 100%)'
+        : 'none';
+      root.style.maskImage = CONFIG.topFadeMask
+        ? 'linear-gradient(to bottom, transparent 0%, black 14%, black 100%)'
+        : 'none';
+
+      const alpha = (CONFIG.bgOpacity ?? 75) / 100;
+
+      if (CONFIG.bgMode === 'solid') {
+        root.style.background = hexToRgba(CONFIG.bgColor1, alpha);
+      } else if (CONFIG.bgMode === 'fade') {
+        root.style.background = `linear-gradient(${CONFIG.bgGradientAngle}deg, ${hexToRgba(CONFIG.bgColor1, alpha)}, ${hexToRgba(CONFIG.bgColor2, alpha)})`;
+      } else if (CONFIG.bgMode === 'image_png') {
+        const imgUrl = CONFIG.imagePngPreviewDataUrl || CONFIG.imagePngPath || './image.png';
+        if (CONFIG.imagePngMode === 'container_border') {
+          root.style.border = `${CONFIG.imagePngWidth}px solid transparent`;
+          root.style.borderImage = `url('${imgUrl}') ${CONFIG.imagePngSlice} fill / ${CONFIG.imagePngWidth}px stretch`;
+        } else if (CONFIG.imagePngMode === 'container_bg') {
+          root.style.backgroundImage = `url('${imgUrl}')`;
+          root.style.backgroundSize = 'cover';
+          root.style.backgroundPosition = 'center';
+        }
+      }
+
+      // Highlight active background mode button
+      ['transparent', 'image_png', 'solid', 'fade'].forEach(m => {
+        const btn = document.getElementById('bg-mode-' + m);
+        if (btn) {
+          if (CONFIG.bgMode === m) {
+            btn.className = 'p-3 rounded-xl border text-left transition bg-cyan-500/15 border-cyan-400 shadow-sm';
+          } else {
+            btn.className = 'p-3 rounded-xl border text-left transition bg-[#0b0d14] border-white/10 hover:bg-white/5';
+          }
+        }
+      });
+    }
+
+    function connectStreamerBot() {
+      const ws = new WebSocket(CONFIG.wsUrl || 'ws://127.0.0.1:8080/');
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          request: 'Subscribe',
+          id: 'obs-chat-overlay-sub',
+          events: {
+            Twitch: ['ChatMessage', 'Announcement', 'ChatMessageDeleted', 'UserBanned', 'UserTimedOut', 'ChatCleared'],
+            YouTube: ['Message', 'SuperChat', 'MessageDeleted', 'UserBanned'],
+            Kick: ['ChatMessage', 'ChatMessageDeleted', 'UserBanned', 'UserTimedOut'],
+            General: ['Custom']
+          }
+        }));
+      };
+      ws.onmessage = (event) => {
+        try {
+          handleStreamerBotPayload(JSON.parse(event.data));
+        } catch (e) {}
+      };
+      ws.onclose = () => {
+        setTimeout(connectStreamerBot, 3000);
+      };
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyContainerBackgroundStyles();
+      connectStreamerBot();
+    });
+  </script>
+</body>
+</html>
