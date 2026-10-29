@@ -2,6 +2,8 @@
 
 A fully customizable, single-file HTML studio and OBS overlay generator that connects directly to Streamer.bot via WebSocket to capture live chat from **Twitch**, **YouTube**, and **Kick**.
 
+![https://github.com/MrrZed0/Alerts_All_Platforms/blob/main/Preview.png](https://github.com/MrrZed0/Custom-Chat-Overlay/blob/main/1.png?raw=true)
+
 ---
 
 ## 🚀 Features
